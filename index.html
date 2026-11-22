@@ -53,6 +53,9 @@ h1{font-size:24px;margin:4px 0 2px}h2{font-size:17px;margin:22px 0 10px}
 .wrow b{font-size:16px}.dots{display:flex;gap:3px;margin-top:4px}.dots i{width:7px;height:7px;border-radius:50%;background:var(--line)}.dots i.f{background:var(--ok)}
 .spk{width:42px;height:42px;border-radius:50%;background:var(--pri2);color:var(--pri);display:inline-flex;align-items:center;justify-content:center;flex:none}
 .spk svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.spk.rec{background:var(--no2);color:var(--no)}
+.blank{display:inline-block;min-width:70px;border-bottom:3px solid var(--pri);color:var(--pri);font-weight:700;text-align:center}
+.area{width:100%;min-height:150px;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 12px;outline:none}
 .spk.big{width:84px;height:84px}.spk.big svg{width:38px;height:38px}
 .tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:999px;background:var(--pri2);color:var(--pri);font-weight:600}
 .chart{display:flex;align-items:flex-end;gap:4px;height:110px;margin-top:8px}
@@ -136,16 +139,23 @@ const W=[];const B={};
   });
 })();
 
+const lvName=l=>l==='ME'?'Benim':l;
+function syncCustom(){
+  for(let i=W.length-1;i>=0;i--)if(W[i].lv==='ME'){delete B[W[i].id];W.splice(i,1)}
+  (S.custom||[]).slice().reverse().forEach(c=>{const w={id:'ME:'+c.w,lv:'ME',w:c.w,head:c.w,hint:'',pos:'',tr:c.tr,ok:c.ok||'',ex:c.ex||'',ext:c.ext||''};W.unshift(w);B[w.id]=w});
+}
+const reEsc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+function clozeM(w){if(!w.ex||w.head.includes(','))return null;const m=w.ex.match(new RegExp('(^|[^A-Za-z])('+reEsc(w.head)+"(?:s|es|d|ed|ing)?)(?![A-Za-z'])",'i'));return m?{i:m.index+m[1].length,t:m[2]}:null}
 /* ---------- durum ---------- */
 const KEY='kelime-defterim-v1';
 const IV=[0,1,2,4,8,16,35,75,150]; // kutu -> gün aralığı
 const LEARNED=5;
-let S=load();
+let S=load();syncCustom();
 function load(){
   let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
   s=s||{};s.cards=s.cards||{};s.log=s.log||{};
   s.set=Object.assign({daily:20,accent:'en-US',rate:0.9,remH:20,remM:0},s.set||{});
-  s.tn=s.tn||{day:today(),ids:[]};
+  s.tn=s.tn||{day:today(),ids:[]};s.custom=s.custom||[];
   return s;
 }
 function save(){
@@ -186,6 +196,25 @@ const canSpeak='speechSynthesis' in window;
 const say=(id,slow)=>speak(B[id].head.replace(',',' ,'),slow);
 const sayEx=id=>speak(B[id].ex);
 
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const MIC='<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+let rec=null;
+function stopRec(){if(rec){try{rec.onend=null;rec.abort()}catch(e){}rec=null}const b=$('#micb');if(b)b.classList.remove('rec')}
+function listen(){
+  if(!ses||ses.answered||!SR)return;
+  if(canSpeak)speechSynthesis.cancel();
+  stopRec();
+  const st=$('#spst'),btn=$('#micb'),w=B[ses.cur.id];let msg='';
+  rec=new SR();rec.lang=S.set.accent;rec.maxAlternatives=5;rec.interimResults=false;
+  rec.onresult=e=>{
+    const alts=[...e.results[0]].map(a=>norm(a.transcript)),acc=w.head.split(/,\s*/).map(norm);
+    if(alts.some(a=>acc.some(x=>(' '+a+' ').includes(' '+x+' '))))answer(true);
+    else msg='Şunu duydum: "'+alts[0]+'". Önce dinle, sonra tekrar dene.';
+  };
+  rec.onerror=e=>{msg={'not-allowed':'Mikrofon izni gerekli. Tarayıcı sorduğunda izin ver.','service-not-allowed':'Mikrofon izni gerekli.','no-speech':'Ses duyulmadı. Tekrar dene.','network':'Konuşma tanıma için internet gerekli.','audio-capture':'Mikrofon bulunamadı.'}[e.error]||'Anlaşılamadı. Tekrar dene.'};
+  rec.onend=()=>{rec=null;if(btn)btn.classList.remove('rec');if(st&&ses&&!ses.answered)st.textContent=msg||'Ses duyulmadı. Tekrar dene.'};
+  try{rec.start();btn.classList.add('rec');st.textContent='Dinliyorum… şimdi söyle'}catch(e){st.textContent='Mikrofon başlatılamadı.'}
+}
 /* ---------- gezinme ---------- */
 let tab='home',wfilter='learning',wquery='',wlimit=60;
 document.getElementById('nav').onclick=e=>{const b=e.target.closest('button');if(b){tab=b.dataset.tab;render()}};
@@ -209,7 +238,7 @@ function vHome(){
   <div class="card">
     <b>Bugünkü plan</b>
     <div class="step"><div class="num ${revDone?'done':''}">${revDone?'✓':'1'}</div><div class="grow"><b>Tekrarlar</b><div class="mut sm">${due?due+' kelime tekrar bekliyor':c.total?'Bugünlük tekrar kalmadı':'Henüz tekrar yok'}</div></div>${due?'<button class="btn smb" onclick="startReview()">Başla</button>':''}</div>
-    <div class="step"><div class="num ${newDone?'done':''}">${newDone?'✓':'2'}</div><div class="grow"><b>Yeni kelimeler</b><div class="mut sm">${remain===0?'Tüm kelimeleri gördün 🎉':`${nw} / ${goal} öğrenildi${nxt?' · seviye '+nxt.lv:''}`}</div></div>${remain?`<button class="btn smb ${left?'':'sec'}" onclick="startNew()">${left?(nw?'Devam':'Başla'):'+10'}</button>`:''}</div>
+    <div class="step"><div class="num ${newDone?'done':''}">${newDone?'✓':'2'}</div><div class="grow"><b>Yeni kelimeler</b><div class="mut sm">${remain===0?'Tüm kelimeleri gördün 🎉':`${nw} / ${goal} öğrenildi${nxt?' · '+(nxt.lv==='ME'?'kendi kelimelerin':'seviye '+nxt.lv):''}`}</div></div>${remain?`<button class="btn smb ${left?'':'sec'}" onclick="startNew()">${left?(nw?'Devam':'Başla'):'+10'}</button>`:''}</div>
     <div class="step"><div class="num">3</div><div class="grow"><b>Akşam tekrarı</b><div class="mut sm">${nw?'Bugünkü '+nw+' kelimeyi uyumadan önce bir daha gör':'Önce bugünün kelimelerini öğren'}</div></div>${nw?'<button class="btn smb sec" onclick="startEvening()">Başla</button>':''}</div>
   </div>
   ${due>goal*3?'<div class="card sm" style="background:var(--amb2);color:var(--amb)">Biriken tekrarın çok. Bugün yeni kelimeyi boş ver, önce tekrarları bitir — unutmamanın yolu bu.</div>':''}
@@ -219,6 +248,8 @@ function vHome(){
     <button class="tile" ${c.hard<1?'disabled':''} onclick="startHard()"><b>🎯 Zor kelimeler</b><span>${c.hard} kelime</span></button>
     <button class="tile" ${c.total<4||!canSpeak?'disabled':''} onclick="startListen()"><b>🎧 Dinleme</b><span>Duy, anlamını bul, yaz</span></button>
     <button class="tile" ${c.total<4?'disabled':''} onclick="startWrite()"><b>✍️ Yazma</b><span>Türkçeden İngilizceye</span></button>
+    <button class="tile" ${c.total<1||!SR?'disabled':''} onclick="startSpeak()"><b>🎤 Konuşma</b><span>${SR?'Kelimeyi sesli söyle':'Bu tarayıcıda desteklenmiyor'}</span></button>
+    <button class="tile" ${c.total<4?'disabled':''} onclick="startCloze()"><b>🧩 Cümle tamamlama</b><span>Boşluğa doğru kelimeyi koy</span></button>
   </div>
   <h2>Durumum</h2>
   <div class="stats"><div class="stat"><b>${c.learning}</b><span>Öğreniyorum</span></div><div class="stat"><b>${c.learned}</b><span>Öğrendim</span></div><div class="stat"><b>${l.n+l.r}</b><span>Bugün çalışılan</span></div></div>
@@ -226,9 +257,9 @@ function vHome(){
   <button class="btn ghost wide" onclick="showTips()">💡 Unutmamak için 7 kural</button>`;
 }
 function levelBars(){
-  return '<div class="card">'+LEVELS.filter(lv=>W.some(w=>w.lv===lv)).map(lv=>{
+  return '<div class="card">'+['ME',...LEVELS].filter(lv=>W.some(w=>w.lv===lv)).map(lv=>{
     const all=W.filter(w=>w.lv===lv),st=all.filter(w=>S.cards[w.id]).length;
-    return `<div class="row sm" style="margin:6px 0"><b style="width:26px">${lv}</b><div class="bar grow"><i style="width:${100*st/all.length}%"></i></div><span class="mut">${st}/${all.length}</span></div>`}).join('')+'</div>';
+    return `<div class="row sm" style="margin:6px 0"><b style="width:${lv==='ME'?48:26}px">${lvName(lv)}</b><div class="bar grow"><i style="width:${100*st/all.length}%"></i></div><span class="mut">${st}/${all.length}</span></div>`}).join('')+'</div>';
 }
 function showTips(){
   openModal(`<h2 style="margin-top:0">Unutmamak için 7 kural</h2>
@@ -252,31 +283,32 @@ function wordList(){
   else if(wfilter==='hard')a=a.filter(w=>S.cards[w.id]&&isHard(S.cards[w.id]));
   else if(wfilter==='today')a=a.filter(w=>S.tn.ids.includes(w.id));
   else if(wfilter==='new')a=a.filter(w=>!S.cards[w.id]);
+  else if(wfilter==='mine')a=a.filter(w=>w.lv==='ME');
   if(q)a=a.filter(w=>w.head.toLowerCase().includes(q)||w.tr.toLocaleLowerCase('tr').includes(q));
-  if(wfilter!=='new'&&wfilter!=='all')a=a.slice().sort((x,y)=>S.cards[x.id].d-S.cards[y.id].d);
+  if(wfilter!=='new'&&wfilter!=='all'&&wfilter!=='mine')a=a.slice().sort((x,y)=>S.cards[x.id].d-S.cards[y.id].d);
   return a;
 }
 function vWords(){
-  const c=counts(),tabs=[['learning','Öğreniyorum '+c.learning],['learned','Öğrendim '+c.learned],['hard','Zor '+c.hard],['today','Bugün '+S.tn.ids.length],['new','Sırada'],['all','Tümü']];
-  return `<h1>Kelimeler</h1>
+  const c=counts(),tabs=[['learning','Öğreniyorum '+c.learning],['learned','Öğrendim '+c.learned],['hard','Zor '+c.hard],['today','Bugün '+S.tn.ids.length],['mine','Benim '+S.custom.length],['new','Sırada'],['all','Tümü']];
+  return `<div class="row"><h1 class="grow">Kelimeler</h1><button class="btn smb" onclick="showAdd()">+ Kelime ekle</button></div>
   <input class="search" placeholder="Kelime ya da anlam ara…" value="${esc(wquery)}" oninput="wquery=this.value;wlimit=60;$('#wl').innerHTML=wRows()">
   <div class="seg">${tabs.map(([k,t])=>`<button class="${wfilter===k?'on':''}" onclick="wfilter='${k}';wlimit=60;render()">${t}</button>`).join('')}</div>
   <div class="card" id="wl">${wRows()}</div>`;
 }
 function wRows(){
   const a=wordList();
-  if(!a.length)return'<div class="mut ctr" style="padding:18px 0">'+({learning:'Henüz öğrenmeye başladığın kelime yok. "Bugün" sekmesinden başla.',learned:'Bir kelime, aralıklı tekrarlarda art arda doğru bilindikçe (yaklaşık 2 hafta) buraya geçer.',hard:'Zor kelimen yok. 2 kez yanlış yaptığın ya da yıldızladığın kelimeler burada toplanır.',today:'Bugün henüz yeni kelime öğrenmedin.'}[wfilter]||'Sonuç yok.')+'</div>';
+  if(!a.length)return'<div class="mut ctr" style="padding:18px 0">'+({learning:'Henüz öğrenmeye başladığın kelime yok. "Bugün" sekmesinden başla.',learned:'Bir kelime, aralıklı tekrarlarda art arda doğru bilindikçe (yaklaşık 2 hafta) buraya geçer.',hard:'Zor kelimen yok. 2 kez yanlış yaptığın ya da yıldızladığın kelimeler burada toplanır.',today:'Bugün henüz yeni kelime öğrenmedin.',mine:'Dersinde öğrendiğin kelimeleri "+ Kelime ekle" ile buraya ekle; yeni kelimelerde ilk onlar gelir.'}[wfilter]||'Sonuç yok.')+'</div>';
   return a.slice(0,wlimit).map(w=>{const c=S.cards[w.id];
     return `<div class="wrow"><button class="grow" style="text-align:left" onclick="showWord('${esc(w.id)}')"><b>${esc(w.head)}</b> <span class="mut sm">${esc(w.ok)}</span><div class="mut sm">${esc(w.tr)}</div>${c?`<div class="dots">${[1,2,3,4,5,6,7,8].map(i=>`<i class="${i<=c.b?'f':''}"></i>`).join('')}</div>`:''}</button>${canSpeak?`<button class="spk" onclick="say('${esc(w.id)}')">${SPK}</button>`:''}</div>`}).join('')
     +(a.length>wlimit?`<button class="btn ghost wide" onclick="wlimit+=100;$('#wl').innerHTML=wRows()">Daha fazla göster (${a.length-wlimit})</button>`:'');
 }
 function wordCard(w,opt){
   opt=opt||{};
-  return `<div><span class="tag">${w.lv}</span> <span class="mut sm">${esc(trPos(w.pos))}${w.hint?' · '+esc(w.hint):''}</span></div>
+  return `<div><span class="tag">${lvName(w.lv)}</span> <span class="mut sm">${esc(trPos(w.pos))}${w.hint?' · '+esc(w.hint):''}</span></div>
   <div class="word">${esc(w.head)}</div>
   <div class="row"><div class="okn grow">${esc(w.ok)}</div>${canSpeak?`<button class="spk" onclick="say('${esc(w.id)}')">${SPK}</button><button class="spk" onclick="say('${esc(w.id)}',1)" title="Yavaş">🐢</button>`:''}</div>
   <div class="mean">${esc(w.tr)}</div>
-  <div class="ex" ${canSpeak?`onclick="sayEx('${esc(w.id)}')"`:''}><p>${canSpeak?'🔊 ':''}${esc(w.ex)}</p><p>${esc(w.ext)}</p></div>
+  ${w.ex?`<div class="ex" ${canSpeak?`onclick="sayEx('${esc(w.id)}')"`:''}><p>${canSpeak?'🔊 ':''}${esc(w.ex)}</p><p>${esc(w.ext)}</p></div>`:''}
   <textarea class="note" rows="2" placeholder="Hafıza ipucun: bu kelime sana neyi hatırlatıyor?" onchange="setNote('${esc(w.id)}',this.value)">${esc((S.cards[w.id]&&S.cards[w.id].n)||notes[w.id]||'')}</textarea>`;
 }
 const notes={};
@@ -285,8 +317,32 @@ function showWord(id){
   const w=B[id],c=S.cards[id];
   openModal(wordCard(w)+(c?`<div class="card sm"><div class="row"><div class="grow">Sonraki tekrar</div><b>${c.d<=today()?'Bugün':dayStr(c.d)}</b></div><div class="row"><div class="grow">Doğru / toplam</div><b>${c.c} / ${c.s}</b></div><div class="row"><div class="grow">Unutma sayısı</div><b>${c.l}</b></div></div>
   <button class="btn sec wide" onclick="toggleHard('${esc(id)}')">${c.f?'★ Zor işaretini kaldır':'☆ Zor olarak işaretle'}</button>`:'<p class="mut sm">Bu kelime henüz sırada.</p>')
+  +(w.lv==='ME'?`<button class="btn ghost wide" style="color:var(--no)" onclick="delCustom('${esc(id)}')">Bu kelimeyi sil</button>`:'')
   +'<button class="btn ghost wide" onclick="closeModal()">Kapat</button>');
   say(id);
+}
+function showAdd(){
+  openModal(`<h2 style="margin-top:0">Kendi kelimelerini ekle</h2>
+  <p class="sm mut">Her satıra bir kelime yaz. Önce İngilizcesi, sonra <b>=</b>, sonra Türkçesi. İstersen üçüncü olarak bir örnek cümle ekleyebilirsin.</p>
+  <textarea class="area" id="addta" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="homework = ev ödevi&#10;borrow = ödünç almak = Can I borrow your pen?"></textarea>
+  <button class="btn wide" style="margin-top:10px" onclick="addCustom()">Ekle</button><button class="btn ghost wide" onclick="closeModal()">Vazgeç</button>`);
+}
+function addCustom(){
+  let n=0,skip=0;
+  $('#addta').value.split('\n').forEach(l=>{
+    const p=l.split('=').map(x=>x.trim());if(!l.trim())return;
+    if(p.length<2||!p[0]||!p[1]){skip++;return}
+    const w=p[0].replace(/\s+/g,' ');
+    if(S.custom.some(c=>c.w.toLowerCase()===w.toLowerCase())){skip++;return}
+    S.custom.push({w,tr:p[1],ex:p[2]||'',ext:''});n++;
+  });
+  if(!n){toast(skip?'Eklenemedi: "kelime = anlam" biçiminde yaz ya da kelime zaten var':'Önce kelime yaz');return}
+  syncCustom();save();wfilter='mine';closeModal();render();toast(n+' kelime eklendi'+(skip?', '+skip+' satır atlandı':''));
+}
+function delCustom(id){
+  if(!confirm('"'+B[id].head+'" silinsin mi? Bu kelimenin ilerlemesi de silinir.'))return;
+  S.custom=S.custom.filter(c=>'ME:'+c.w!==id);delete S.cards[id];S.tn.ids=S.tn.ids.filter(x=>x!==id);
+  syncCustom();save();closeModal();render();
 }
 function toggleHard(id){S.cards[id].f=!S.cards[id].f;save();closeModal();render()}
 function openModal(h){$('#sheet').innerHTML=h;$('#modal').classList.remove('hidden')}
@@ -365,8 +421,8 @@ async function enableNotif(){
   render();
 }
 function exportData(){download('kelime-yedek-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(S),'application/json');toast('Yedek indirildi')}
-function importData(f){if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.cards||!d.log)throw 0;if(!confirm('Mevcut ilerlemenin yerine yedek yüklenecek. Emin misin?'))return;localStorage.setItem(KEY,JSON.stringify(d));S=load();save();render();toast('Yedek yüklendi')}catch(e){toast('Geçerli bir yedek dosyası değil')}};r.readAsText(f)}
-function resetAll(){if(confirm('Tüm ilerleme silinecek. Bu geri alınamaz. Emin misin?')&&confirm('Son kez: gerçekten sıfırlansın mı?')){localStorage.removeItem(KEY);S=load();save();render()}}
+function importData(f){if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.cards||!d.log)throw 0;if(!confirm('Mevcut ilerlemenin yerine yedek yüklenecek. Emin misin?'))return;localStorage.setItem(KEY,JSON.stringify(d));S=load();syncCustom();save();render();toast('Yedek yüklendi')}catch(e){toast('Geçerli bir yedek dosyası değil')}};r.readAsText(f)}
+function resetAll(){if(confirm('Tüm ilerleme silinecek. Bu geri alınamaz. Emin misin?')&&confirm('Son kez: gerçekten sıfırlansın mı?')){localStorage.removeItem(KEY);S=load();syncCustom();save();render()}}
 let deferred=null;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;if(tab==='set')render()});
 function doInstall(){if(deferred){deferred.prompt();deferred=null}}
@@ -375,6 +431,7 @@ function doInstall(){if(deferred){deferred.prompt();deferred=null}}
 let ses=null,autoT=null;
 const q=(type,id)=>({type,id});
 function startSession(o){
+  o.queue.forEach(it=>{if(it.type==='cloze'&&!clozeM(B[it.id]))it.type='mc_tr_en'});
   if(!o.queue.length){toast('Çalışılacak kelime yok');return}
   ses=Object.assign({i:0,seen:new Set(),ok:0,no:0,missed:new Set(),t0:Date.now()},o);
   $('#ses').classList.remove('hidden');renderItem();
@@ -383,7 +440,7 @@ function quitSession(){
   if(ses&&ses.i<ses.queue.length&&ses.i>0&&!confirm('Oturumdan çıkılsın mı? Buraya kadarki ilerlemen kaydedildi.'))return;
   endSession();
 }
-function endSession(){clearTimeout(autoT);if(canSpeak)speechSynthesis.cancel();ses=null;$('#ses').classList.add('hidden');save();render()}
+function endSession(){clearTimeout(autoT);stopRec();if(canSpeak)speechSynthesis.cancel();ses=null;$('#ses').classList.add('hidden');save();render()}
 function startNew(){
   let left=S.set.daily-S.tn.ids.length;
   if(left<=0)left=10;
@@ -400,8 +457,8 @@ function startNew(){
 function typeFor(id){
   const b=S.cards[id].b,r=Math.random();
   if(b<=1)return r<.5?'mc_en_tr':'mc_tr_en';
-  if(b===2)return r<.35?'mc_tr_en':r<.65&&canSpeak?'listen_mc':'type';
-  return r<.55?'type':r<.8&&canSpeak?'listen_type':'mc_tr_en';
+  if(b===2)return r<.25?'mc_tr_en':r<.5?'cloze':r<.7&&canSpeak?'listen_mc':'type';
+  return r<.45?'type':r<.65&&canSpeak?'listen_type':r<.85?'cloze':'mc_tr_en';
 }
 function startReview(){startSession({mode:'review',queue:dueCards().slice(0,50).map(id=>q(typeFor(id),id)),title:'Tekrar'})}
 function startEvening(){const ids=S.tn.ids.filter(id=>B[id]);startSession({mode:'free',queue:shuffle(ids).map(id=>q(Math.random()<.5?'mc_tr_en':'type',id)),title:'Akşam tekrarı'})}
@@ -412,6 +469,8 @@ function weakPool(n,f){
 function startQuick(){startSession({mode:'quick',queue:weakPool(10).map(id=>q(typeFor(id),id)),title:'2 dakikalık tur'})}
 function startHard(){startSession({mode:'quick',queue:weakPool(15,isHard).map(id=>q(Math.random()<.5?'mc_tr_en':'type',id)),title:'Zor kelimeler'})}
 function startListen(){startSession({mode:'quick',queue:weakPool(10).map((id,i)=>q(i%2?'listen_type':'listen_mc',id)),title:'Dinleme'})}
+function startSpeak(){startSession({mode:'free',queue:weakPool(10).map(id=>q('speak',id)),title:'Konuşma',msg:'Her gün birkaç kelimeyi sesli söylemek telaffuzunu hızla düzeltir.'})}
+function startCloze(){startSession({mode:'quick',queue:weakPool(40).filter(id=>clozeM(B[id])).slice(0,10).map(id=>q('cloze',id)),title:'Cümle tamamlama'})}
 function startWrite(){startSession({mode:'quick',queue:weakPool(10).map(id=>q('type',id)),title:'Yazma'})}
 
 function distract(w){
@@ -448,6 +507,15 @@ function renderItem(){
     body.innerHTML=`<div class="qlabel">Dinle · anlamı hangisi?</div><div class="ctr" style="margin:26px 0 4px"><button class="spk big" onclick="say('${esc(w.id)}')">${SPK}</button><div style="margin-top:10px"><button class="btn ghost smb" onclick="say('${esc(w.id)}',1)">🐢 Yavaş dinle</button></div></div>
     <div class="opts">${opts().map(o=>`<button class="opt" data-ok="${o.id===w.id?1:0}" onclick="pick(this)">${esc(o.tr)}</button>`).join('')}</div>`;
     say(w.id);
+  }else if(it.type==='cloze'){
+    const m=clozeM(w);
+    body.innerHTML=`<div class="qlabel">Boşluğa hangi kelime gelir?</div><div class="mean" style="font-size:26px;line-height:1.5">${esc(w.ex.slice(0,m.i))}<span class="blank" id="blank" data-t="${esc(m.t)}">&nbsp;</span>${esc(w.ex.slice(m.i+m.t.length))}</div>${w.ext?`<div class="mut">${esc(w.ext)}</div>`:''}
+    <div class="opts">${opts().map(o=>`<button class="opt" data-ok="${o.id===w.id?1:0}" onclick="pick(this)">${esc(o.head)}</button>`).join('')}</div>`;
+  }else if(it.type==='speak'){
+    body.innerHTML=`<div class="qlabel">Dinle, sonra mikrofona söyle</div><div class="word">${esc(w.head)}</div><div class="row"><div class="okn grow">${esc(w.ok)}</div>${canSpeak?`<button class="spk" onclick="say('${esc(w.id)}')">${SPK}</button><button class="spk" onclick="say('${esc(w.id)}',1)">🐢</button>`:''}</div><div class="mut">${esc(w.tr)}</div>
+    <div class="ctr" style="margin-top:34px"><button class="spk big" id="micb" onclick="listen()">${MIC}</button><div id="spst" class="mut" style="margin-top:12px;min-height:44px">Mikrofona dokun ve kelimeyi söyle</div></div>`;
+    foot.innerHTML=`<button class="btn ghost wide" onclick="ses.cur.noRe=true;answer(false)">Geç</button>`;
+    say(w.id);return;
   }else{ // type, listen_type
     const L=it.type==='listen_type';
     body.innerHTML=(L?`<div class="qlabel">Dinle · duyduğun kelimeyi yaz</div><div class="ctr" style="margin:26px 0 4px"><button class="spk big" onclick="say('${esc(w.id)}')">${SPK}</button><div style="margin-top:10px"><button class="btn ghost smb" onclick="say('${esc(w.id)}',1)">🐢 Yavaş dinle</button></div></div>`
@@ -488,20 +556,22 @@ function answer(ok){
     if(ses.mode!=='learn')logAdd('r');
   }
   if(!it.re){logAdd(ok?'ok':'no');ok?ses.ok++:ses.no++}
-  if(!ok){ses.missed.add(w.id);ses.queue.splice(Math.min(ses.queue.length,ses.i+4),0,{type:it.type,id:it.id,re:true})}
+  stopRec();const bl=$('#blank');if(bl)bl.textContent=bl.dataset.t;
+  if(!ok){ses.missed.add(w.id);if(!it.noRe)ses.queue.splice(Math.min(ses.queue.length,ses.i+4),0,{type:it.type,id:it.id,re:true})}
   save();
   const tin=$('#tin');if(tin){tin.disabled=true;tin.style.borderColor=ok?'var(--ok)':'var(--no)'}
   $('#sfoot').innerHTML=`<div class="fb ${ok?'ok':'no'}"><h3>${ok?'✓ Doğru':'✗ Doğrusu şöyle'}</h3><div class="row"><div class="grow"><b style="font-size:19px">${esc(w.head)}</b> <span class="okn" style="font-size:15px">${esc(w.ok)}</span><div>${esc(w.tr)}</div>${ok?'':`<div class="sm mut" style="margin-top:4px">${esc(w.ex)}</div>${c.n?`<div class="sm" style="margin-top:4px">💡 ${esc(c.n)}</div>`:''}`}</div>${canSpeak?`<button class="spk" onclick="say('${esc(w.id)}')">${SPK}</button>`:''}</div></div><button class="btn wide" onclick="next()">Devam</button>`;
   if(it.type!=='mc_en_tr'&&it.type!=='listen_mc'||!ok)say(w.id);
   if(ok)autoT=setTimeout(next,1500);
 }
-function next(){clearTimeout(autoT);if(!ses)return;ses.i++;renderItem()}
+function next(){clearTimeout(autoT);stopRec();if(!ses)return;ses.i++;renderItem()}
 function finish(){
   save();
   const tot=ses.ok+ses.no,pct=tot?Math.round(100*ses.ok/tot):100,min=Math.max(1,Math.round((Date.now()-ses.t0)/6e4));
   const more=ses.mode==='review'&&dueCards().length;
-  const msg={learn:'Bu kelimeler yarın ilk tekrarına gelecek. Uyumadan önce "Akşam tekrarı"nı yapmayı unutma.',review:more?`Hâlâ ${more} tekrar bekliyor.`:'Bugünün tekrarları bitti. Yarın görüşürüz!',quick:'Yanlış yaptıkların tekrar listesine eklendi.',free:'Güzel. Bu kelimeler yarın tekrar karşına çıkacak.'}[ses.mode];
-  $('#sbody').innerHTML=`<div class="ctr" style="margin-top:36px"><div style="font-size:64px">${pct>=80?'🎉':'💪'}</div><h1>${esc(ses.title)} tamam</h1><p class="mut">${msg}</p></div>
+  let msg0={learn:'Bu kelimeler yarın ilk tekrarına gelecek. Uyumadan önce "Akşam tekrarı"nı yapmayı unutma.',review:more?`Hâlâ ${more} tekrar bekliyor.`:'Bugünün tekrarları bitti. Yarın görüşürüz!',quick:'Yanlış yaptıkların tekrar listesine eklendi.',free:'Güzel. Bu kelimeler yarın tekrar karşına çıkacak.'}[ses.mode];
+  if(ses.msg)msg0=ses.msg;
+  $('#sbody').innerHTML=`<div class="ctr" style="margin-top:36px"><div style="font-size:64px">${pct>=80?'🎉':'💪'}</div><h1>${esc(ses.title)} tamam</h1><p class="mut">${msg0}</p></div>
   <div class="stats"><div class="stat"><b>${ses.seen.size}</b><span>Kelime</span></div><div class="stat"><b>${pct}%</b><span>Doğruluk</span></div><div class="stat"><b>${min} dk</b><span>Süre</span></div></div>
   ${ses.missed.size?`<div class="card"><b>Zorlandıkların</b>${[...ses.missed].map(id=>`<div class="wrow"><div class="grow"><b>${esc(B[id].head)}</b> <span class="mut sm">${esc(B[id].ok)}</span><div class="mut sm">${esc(B[id].tr)}</div></div>${canSpeak?`<button class="spk" onclick="say('${esc(id)}')">${SPK}</button>`:''}</div>`).join('')}</div>`:''}`;
   $('#sfoot').innerHTML=(more?'<button class="btn wide" onclick="endSession();startReview()">Tekrarlara devam et</button>':'')+`<button class="btn ${more?'ghost':''} wide" onclick="endSession()">Bitir</button>`;
