@@ -112,6 +112,7 @@ ol.tips{padding-left:20px;margin:6px 0}ol.tips li{margin:9px 0}
 /* ---------- yardımcılar ---------- */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const jq=s=>esc(String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"));
 const today=()=>{const d=new Date();return Math.floor((d.getTime()-d.getTimezoneOffset()*6e4)/864e5)};
 const dayStr=(n,o)=>new Date(n*864e5).toLocaleDateString('tr-TR',Object.assign({timeZone:'UTC',day:'numeric',month:'short'},o||{}));
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
@@ -205,7 +206,9 @@ const voiceLabel=v=>{const l=v.lang.replace('_','-');return (LANGN[l]||l)+' · '
 function setVoice(v){S.set.voice=v;save();speak('Hello! This is my voice. Nice to meet you.')}
 function speak(t,slow){
   if(!('speechSynthesis' in window))return;
-  speechSynthesis.cancel();
+  speechSynthesis.cancel();speechSynthesis.speak(mkUtter(t,slow));
+}
+function mkUtter(t,slow){
   const u=new SpeechSynthesisUtterance(t);u.lang=S.set.accent;
   const en=enVoices(),sv=S.set.voice;let v=null;
   if(sv==='*'&&en.length)v=en[Math.floor(Math.random()*en.length)];
@@ -213,7 +216,7 @@ function speak(t,slow){
   if(!v)v=voices.find(x=>x.lang.replace('_','-')===S.set.accent);
   if(v){u.voice=v;u.lang=v.lang}
   u.pitch=S.set.pitch||1;
-  u.rate=slow?0.5:S.set.rate;speechSynthesis.speak(u);
+  u.rate=slow?0.5:S.set.rate;return u;
 }
 const canSpeak='speechSynthesis' in window;
 const say=(id,slow)=>speak(B[id].head.replace(',',' ,'),slow);
@@ -276,6 +279,17 @@ function vHome(){
     <button class="tile" ${c.total<4?'disabled':''} onclick="startCloze()"><b>🧩 Cümle tamamlama</b><span>Boşluğa doğru kelimeyi koy</span></button>
     <button class="tile" style="grid-column:1/-1" ${c.total<10?'disabled':''} onclick="startExam()"><b>📝 Haftalık sınav</b><span>${S.exams.length?'Son sınav: '+S.exams[S.exams.length-1].ok+' / '+S.exams[S.exams.length-1].n+' · '+dayStr(S.exams[S.exams.length-1].d):'Bu hafta öğrendiklerinden 30 soru'}</span></button>
   </div>
+  <h2>Etkinlikler</h2>
+  <div class="grid2">
+    <button class="tile" ${c.total<6?'disabled':''} onclick="startMatch()"><b>🧩 Eşleştirme</b><span>${S.best&&S.best.match?'En iyi süren: '+S.best.match+' sn':'Kelimeyi anlamıyla eşleştir'}</span></button>
+    <button class="tile" ${c.total<6?'disabled':''} onclick="startBuild()"><b>🧱 Cümle kurma</b><span>Kelimeleri sıraya diz</span></button>
+    <button class="tile" ${c.total<6?'disabled':''} onclick="startSpell()"><b>🔤 Harf dizme</b><span>Harflerden kelimeyi kur</span></button>
+    <button class="tile" ${c.total<6?'disabled':''} onclick="startSpeed()"><b>⏱️ Hızlı tur</b><span>${S.best&&S.best.speed?'Rekorun: '+S.best.speed+' doğru':'60 saniyede kaç kelime?'}</span></button>
+    <button class="tile" ${c.total<6?'disabled':''} onclick="startTF()"><b>✅ Doğru mu yanlış mı</b><span>Anlam doğru mu, karar ver</span></button>
+    <button class="tile" ${c.total<6||!canSpeak?'disabled':''} onclick="startDict()"><b>📝 Dikte</b><span>Cümleyi dinle ve yaz</span></button>
+    <button class="tile" style="grid-column:1/-1" ${c.total<1||!canSpeak?'disabled':''} onclick="startHF()"><b>🎧 Eller serbest dinleme</b><span>Kelime, anlamı ve cümlesi sırayla okunur; ekrana bakman gerekmez</span></button>
+  </div>
+  ${c.total<6?'<div class="mut sm" style="margin-top:6px">Etkinlikler en az 6 kelime öğrenince açılır.</div>':''}
   <h2>Durumum</h2>
   <div class="stats"><div class="stat"><b>${c.learning}</b><span>Öğreniyorum</span></div><div class="stat"><b>${c.learned}</b><span>Öğrendim</span></div><div class="stat"><b>${l.n+l.r}</b><span>Bugün çalışılan</span></div></div>
   ${levelBars()}
@@ -309,7 +323,7 @@ function vHard(){
   ${pairs.length?`<div class="card"><div class="row"><b class="grow">Karıştırdığın çiftler</b><button class="btn smb sec" onclick="startPairs()">Çalış</button></div>
     ${pairs.map(([a,b,n])=>`<div class="wrow"><div class="grow"><b>${esc(B[a].head)}</b> <span class="mut">↔</span> <b>${esc(B[b].head)}</b><div class="mut sm">${esc(B[a].tr)} · ${esc(B[b].tr)}</div></div><span class="tag">${n} kez</span></div>`).join('')}</div>`:''}
   <div class="card">${ids.length?ids.map(id=>{const w=B[id],c=S.cards[id],cf=cfs(w)[0];
-    return `<button class="wrow" onclick="showWord('${esc(id)}')"><div class="grow"><b>${c.f?'★ ':''}${esc(w.head)}</b> <span class="mut sm">${esc(w.ok)}</span><div class="mut sm">${esc(w.tr)}</div><div class="sm" style="color:var(--no)">${errs(c)} hata${c.lw?' · son: '+dayStr(c.lw):''}${cf?' · karıştırdığın: '+esc(cf.head):''}</div></div><span class="tag">${c.c}/${c.s}</span></button>`}).join('')
+    return `<button class="wrow" onclick="showWord('${jq(id)}')"><div class="grow"><b>${c.f?'★ ':''}${esc(w.head)}</b> <span class="mut sm">${esc(w.ok)}</span><div class="mut sm">${esc(w.tr)}</div><div class="sm" style="color:var(--no)">${errs(c)} hata${c.lw?' · son: '+dayStr(c.lw):''}${cf?' · karıştırdığın: '+esc(cf.head):''}</div></div><span class="tag">${c.c}/${c.s}</span></button>`}).join('')
     :'<div class="mut ctr" style="padding:18px 0">Henüz zorlandığın kelime yok. Yanlış yaptıkça sistem kendiliğinden buraya ekler.</div>'}</div>`;
 }
 
@@ -338,26 +352,26 @@ function wRows(){
   const a=wordList();
   if(!a.length)return'<div class="mut ctr" style="padding:18px 0">'+({learning:'Henüz öğrenmeye başladığın kelime yok. "Bugün" sekmesinden başla.',learned:'Bir kelime, aralıklı tekrarlarda art arda doğru bilindikçe (yaklaşık 2 hafta) buraya geçer.',hard:'Zor kelimen yok. 2 kez yanlış yaptığın ya da yıldızladığın kelimeler burada toplanır.',today:'Bugün henüz yeni kelime öğrenmedin.',mine:'Dersinde öğrendiğin kelimeleri "+ Kelime ekle" ile buraya ekle; yeni kelimelerde ilk onlar gelir.'}[wfilter]||'Sonuç yok.')+'</div>';
   return a.slice(0,wlimit).map(w=>{const c=S.cards[w.id];
-    return `<div class="wrow"><button class="grow" style="text-align:left" onclick="showWord('${esc(w.id)}')"><b>${esc(w.head)}</b> <span class="mut sm">${esc(w.ok)}</span><div class="mut sm">${esc(w.tr)}</div>${c?`<div class="dots">${[1,2,3,4,5,6,7,8].map(i=>`<i class="${i<=c.b?'f':''}"></i>`).join('')}</div>`:''}</button>${canSpeak?`<button class="spk" onclick="say('${esc(w.id)}')">${SPK}</button>`:''}</div>`}).join('')
+    return `<div class="wrow"><button class="grow" style="text-align:left" onclick="showWord('${jq(w.id)}')"><b>${esc(w.head)}</b> <span class="mut sm">${esc(w.ok)}</span><div class="mut sm">${esc(w.tr)}</div>${c?`<div class="dots">${[1,2,3,4,5,6,7,8].map(i=>`<i class="${i<=c.b?'f':''}"></i>`).join('')}</div>`:''}</button>${canSpeak?`<button class="spk" onclick="say('${jq(w.id)}')">${SPK}</button>`:''}</div>`}).join('')
     +(a.length>wlimit?`<button class="btn ghost wide" onclick="wlimit+=100;$('#wl').innerHTML=wRows()">Daha fazla göster (${a.length-wlimit})</button>`:'');
 }
 function wordCard(w,opt){
   opt=opt||{};
   return `<div><span class="tag">${lvName(w.lv)}</span> <span class="mut sm">${esc(trPos(w.pos))}${w.hint?' · '+esc(w.hint):''}</span></div>
   <div class="word">${esc(w.head)}</div>
-  <div class="row"><div class="okn grow">${esc(w.ok)}</div>${canSpeak?`<button class="spk" onclick="say('${esc(w.id)}')">${SPK}</button><button class="spk" onclick="say('${esc(w.id)}',1)" title="Yavaş">🐢</button>`:''}</div>
+  <div class="row"><div class="okn grow">${esc(w.ok)}</div>${canSpeak?`<button class="spk" onclick="say('${jq(w.id)}')">${SPK}</button><button class="spk" onclick="say('${jq(w.id)}',1)" title="Yavaş">🐢</button>`:''}</div>
   <div class="mean">${esc(w.tr)}</div>
-  ${w.ex?`<div class="ex" ${canSpeak?`onclick="sayEx('${esc(w.id)}')"`:''}><p>${canSpeak?'🔊 ':''}${esc(w.ex)}</p><p>${esc(w.ext)}</p></div>`:''}
+  ${w.ex?`<div class="ex" ${canSpeak?`onclick="sayEx('${jq(w.id)}')"`:''}><p>${canSpeak?'🔊 ':''}${esc(w.ex)}</p><p>${esc(w.ext)}</p></div>`:''}
   ${w.mn?`<div class="ex" style="background:var(--amb2)"><p>💡 ${esc(w.mn)}</p></div>`:''}
-  <textarea class="note" rows="2" placeholder="Kendi ipucun: bu kelime sana neyi hatırlatıyor?" onchange="setNote('${esc(w.id)}',this.value)">${esc((S.cards[w.id]&&S.cards[w.id].n)||notes[w.id]||'')}</textarea>`;
+  <textarea class="note" rows="2" placeholder="Kendi ipucun: bu kelime sana neyi hatırlatıyor?" onchange="setNote('${jq(w.id)}',this.value)">${esc((S.cards[w.id]&&S.cards[w.id].n)||notes[w.id]||'')}</textarea>`;
 }
 const notes={};
 function setNote(id,v){if(S.cards[id]){S.cards[id].n=v;save()}else notes[id]=v}
 function showWord(id){
   const w=B[id],c=S.cards[id];
   openModal(wordCard(w)+(c?`<div class="card sm"><div class="row"><div class="grow">Sonraki tekrar</div><b>${c.d<=today()?'Bugün':dayStr(c.d)}</b></div><div class="row"><div class="grow">Doğru / toplam</div><b>${c.c} / ${c.s}</b></div><div class="row"><div class="grow">Unutma sayısı</div><b>${c.l}</b></div></div>
-  <button class="btn sec wide" onclick="toggleHard('${esc(id)}')">${c.f?'★ Zor işaretini kaldır':'☆ Zor olarak işaretle'}</button>`:'<p class="mut sm">Bu kelime henüz sırada.</p>')
-  +(w.lv==='ME'?`<button class="btn ghost wide" style="color:var(--no)" onclick="delCustom('${esc(id)}')">Bu kelimeyi sil</button>`:'')
+  <button class="btn sec wide" onclick="toggleHard('${jq(id)}')">${c.f?'★ Zor işaretini kaldır':'☆ Zor olarak işaretle'}</button>`:'<p class="mut sm">Bu kelime henüz sırada.</p>')
+  +(w.lv==='ME'?`<button class="btn ghost wide" style="color:var(--no)" onclick="delCustom('${jq(id)}')">Bu kelimeyi sil</button>`:'')
   +'<button class="btn ghost wide" onclick="closeModal()">Kapat</button>');
   say(id);
 }
@@ -482,6 +496,7 @@ function startSession(o){
   $('#ses').classList.remove('hidden');renderItem();
 }
 function quitSession(){
+  if(act){endAct();return}
   if(ses&&ses.i<ses.queue.length&&ses.i>0&&!confirm('Oturumdan çıkılsın mı? Buraya kadarki ilerlemen kaydedildi.'))return;
   endSession();
 }
@@ -562,7 +577,7 @@ function renderItem(){
   const it=ses.cur=ses.queue[ses.i],w=B[it.id],body=$('#sbody'),foot=$('#sfoot');
   ses.answered=false;body.scrollTop=0;
   if(it.type==='pair'){
-    body.innerHTML='<div class="qlabel">Bu ikisini karıştırıyorsun · farkına bak</div>'+[w,B[it.id2]].map(x=>`<div class="card"><div class="row"><div class="grow"><div style="font-size:28px;font-weight:800">${esc(x.head)}</div><div class="okn">${esc(x.ok)}</div><div class="mean" style="font-size:20px;margin:6px 0 0">${esc(x.tr)}</div></div>${canSpeak?`<button class="spk" onclick="say('${esc(x.id)}')">${SPK}</button>`:''}</div>${x.ex?`<div class="mut sm" style="margin-top:8px">${esc(x.ex)}</div>`:''}${x.mn?`<div class="sm" style="margin-top:6px">💡 ${esc(x.mn)}</div>`:''}</div>`).join('');
+    body.innerHTML='<div class="qlabel">Bu ikisini karıştırıyorsun · farkına bak</div>'+[w,B[it.id2]].map(x=>`<div class="card"><div class="row"><div class="grow"><div style="font-size:28px;font-weight:800">${esc(x.head)}</div><div class="okn">${esc(x.ok)}</div><div class="mean" style="font-size:20px;margin:6px 0 0">${esc(x.tr)}</div></div>${canSpeak?`<button class="spk" onclick="say('${jq(x.id)}')">${SPK}</button>`:''}</div>${x.ex?`<div class="mut sm" style="margin-top:8px">${esc(x.ex)}</div>`:''}${x.mn?`<div class="sm" style="margin-top:6px">💡 ${esc(x.mn)}</div>`:''}</div>`).join('');
     foot.innerHTML='<button class="btn wide" onclick="next()">Farkı gördüm, devam</button>';
     say(w.id);return;
   }
@@ -573,14 +588,14 @@ function renderItem(){
   }
   const opts=()=>shuffle([w,...distract(w)]);
   if(it.type==='mc_en_tr'){
-    body.innerHTML=`<div class="qlabel">Türkçesi hangisi?</div><div class="word">${esc(w.head)}</div><div class="row"><div class="okn grow">${esc(w.ok)}</div>${canSpeak?`<button class="spk" onclick="say('${esc(w.id)}')">${SPK}</button>`:''}</div><div class="mut sm">${esc(trPos(w.pos))}${w.hint?' · '+esc(w.hint):''}</div>
+    body.innerHTML=`<div class="qlabel">Türkçesi hangisi?</div><div class="word">${esc(w.head)}</div><div class="row"><div class="okn grow">${esc(w.ok)}</div>${canSpeak?`<button class="spk" onclick="say('${jq(w.id)}')">${SPK}</button>`:''}</div><div class="mut sm">${esc(trPos(w.pos))}${w.hint?' · '+esc(w.hint):''}</div>
     <div class="opts">${opts().map(o=>`<button class="opt" data-ok="${o.id===w.id?1:0}" data-id="${esc(o.id)}" onclick="pick(this)">${esc(o.tr)}</button>`).join('')}</div>`;
     say(w.id);
   }else if(it.type==='mc_tr_en'){
     body.innerHTML=`<div class="qlabel">İngilizcesi hangisi?</div><div class="mean" style="font-size:30px">${esc(w.tr)}</div><div class="mut sm">${esc(trPos(w.pos))}</div>
     <div class="opts">${opts().map(o=>`<button class="opt" data-ok="${o.id===w.id?1:0}" data-id="${esc(o.id)}" onclick="pick(this)">${esc(o.head)}</button>`).join('')}</div>`;
   }else if(it.type==='listen_mc'){
-    body.innerHTML=`<div class="qlabel">Dinle · anlamı hangisi?</div><div class="ctr" style="margin:26px 0 4px"><button class="spk big" onclick="say('${esc(w.id)}')">${SPK}</button><div style="margin-top:10px"><button class="btn ghost smb" onclick="say('${esc(w.id)}',1)">🐢 Yavaş dinle</button></div></div>
+    body.innerHTML=`<div class="qlabel">Dinle · anlamı hangisi?</div><div class="ctr" style="margin:26px 0 4px"><button class="spk big" onclick="say('${jq(w.id)}')">${SPK}</button><div style="margin-top:10px"><button class="btn ghost smb" onclick="say('${jq(w.id)}',1)">🐢 Yavaş dinle</button></div></div>
     <div class="opts">${opts().map(o=>`<button class="opt" data-ok="${o.id===w.id?1:0}" data-id="${esc(o.id)}" onclick="pick(this)">${esc(o.tr)}</button>`).join('')}</div>`;
     say(w.id);
   }else if(it.type==='cloze'){
@@ -588,13 +603,13 @@ function renderItem(){
     body.innerHTML=`<div class="qlabel">Boşluğa hangi kelime gelir?</div><div class="mean" style="font-size:26px;line-height:1.5">${esc(w.ex.slice(0,m.i))}<span class="blank" id="blank" data-t="${esc(m.t)}">&nbsp;</span>${esc(w.ex.slice(m.i+m.t.length))}</div>${w.ext?`<div class="mut">${esc(w.ext)}</div>`:''}
     <div class="opts">${opts().map(o=>`<button class="opt" data-ok="${o.id===w.id?1:0}" data-id="${esc(o.id)}" onclick="pick(this)">${esc(o.head)}</button>`).join('')}</div>`;
   }else if(it.type==='speak'){
-    body.innerHTML=`<div class="qlabel">Dinle, sonra mikrofona söyle</div><div class="word">${esc(w.head)}</div><div class="row"><div class="okn grow">${esc(w.ok)}</div>${canSpeak?`<button class="spk" onclick="say('${esc(w.id)}')">${SPK}</button><button class="spk" onclick="say('${esc(w.id)}',1)">🐢</button>`:''}</div><div class="mut">${esc(w.tr)}</div>
+    body.innerHTML=`<div class="qlabel">Dinle, sonra mikrofona söyle</div><div class="word">${esc(w.head)}</div><div class="row"><div class="okn grow">${esc(w.ok)}</div>${canSpeak?`<button class="spk" onclick="say('${jq(w.id)}')">${SPK}</button><button class="spk" onclick="say('${jq(w.id)}',1)">🐢</button>`:''}</div><div class="mut">${esc(w.tr)}</div>
     <div class="ctr" style="margin-top:34px"><button class="spk big" id="micb" onclick="listen()">${MIC}</button><div id="spst" class="mut" style="margin-top:12px;min-height:44px">Mikrofona dokun ve kelimeyi söyle</div></div>`;
     foot.innerHTML=`<button class="btn ghost wide" onclick="ses.cur.noRe=true;answer(false)">Geç</button>`;
     say(w.id);return;
   }else{ // type, listen_type
     const L=it.type==='listen_type';
-    body.innerHTML=(L?`<div class="qlabel">Dinle · duyduğun kelimeyi yaz</div><div class="ctr" style="margin:26px 0 4px"><button class="spk big" onclick="say('${esc(w.id)}')">${SPK}</button><div style="margin-top:10px"><button class="btn ghost smb" onclick="say('${esc(w.id)}',1)">🐢 Yavaş dinle</button></div></div>`
+    body.innerHTML=(L?`<div class="qlabel">Dinle · duyduğun kelimeyi yaz</div><div class="ctr" style="margin:26px 0 4px"><button class="spk big" onclick="say('${jq(w.id)}')">${SPK}</button><div style="margin-top:10px"><button class="btn ghost smb" onclick="say('${jq(w.id)}',1)">🐢 Yavaş dinle</button></div></div>`
       :`<div class="qlabel">İngilizcesini yaz</div><div class="mean" style="font-size:30px">${esc(w.tr)}</div><div class="mut sm">${esc(trPos(w.pos))}${w.hint?' · '+esc(w.hint):''}</div>`)
       +`<input class="tin" id="tin" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" placeholder="…"><div class="ctr mut" id="hint" style="margin-top:10px;letter-spacing:.2em;min-height:24px"></div>`;
     foot.innerHTML=`<button class="btn wide" onclick="checkType()">Kontrol et</button><div class="row" style="margin-top:6px"><button class="btn ghost grow" onclick="showHint()">İpucu</button><button class="btn ghost grow" onclick="answer(false)">Bilmiyorum</button></div>`;
@@ -640,7 +655,7 @@ function answer(ok){
   if(!ok){ses.missed.add(w.id);if(!it.noRe&&ses.mode!=='exam')ses.queue.splice(Math.min(ses.queue.length,ses.i+4),0,{type:it.type,id:it.id,re:true})}
   save();
   const tin=$('#tin');if(tin){tin.disabled=true;tin.style.borderColor=ok?'var(--ok)':'var(--no)'}
-  $('#sfoot').innerHTML=`<div class="fb ${ok?'ok':'no'}"><h3>${ok?'✓ Doğru':'✗ Doğrusu şöyle'}</h3><div class="row"><div class="grow"><b style="font-size:19px">${esc(w.head)}</b> <span class="okn" style="font-size:15px">${esc(w.ok)}</span><div>${esc(w.tr)}</div>${ok?'':`<div class="sm mut" style="margin-top:4px">${esc(w.ex)}</div>${c.n||w.mn?`<div class="sm" style="margin-top:4px">💡 ${esc(c.n||w.mn)}</div>`:''}`}</div>${canSpeak?`<button class="spk" onclick="say('${esc(w.id)}')">${SPK}</button>`:''}</div></div><button class="btn wide" onclick="next()">Devam</button>`;
+  $('#sfoot').innerHTML=`<div class="fb ${ok?'ok':'no'}"><h3>${ok?'✓ Doğru':'✗ Doğrusu şöyle'}</h3><div class="row"><div class="grow"><b style="font-size:19px">${esc(w.head)}</b> <span class="okn" style="font-size:15px">${esc(w.ok)}</span><div>${esc(w.tr)}</div>${ok?'':`<div class="sm mut" style="margin-top:4px">${esc(w.ex)}</div>${c.n||w.mn?`<div class="sm" style="margin-top:4px">💡 ${esc(c.n||w.mn)}</div>`:''}`}</div>${canSpeak?`<button class="spk" onclick="say('${jq(w.id)}')">${SPK}</button>`:''}</div></div><button class="btn wide" onclick="next()">Devam</button>`;
   if(it.type!=='mc_en_tr'&&it.type!=='listen_mc'||!ok)say(w.id);
   if(ok)autoT=setTimeout(next,1500);
 }
@@ -659,14 +674,233 @@ function finish(){
   save();
   $('#sbody').innerHTML=`<div class="ctr" style="margin-top:36px"><div style="font-size:64px">${pct>=80?'🎉':'💪'}</div><h1>${esc(ses.title)} tamam</h1><p class="mut">${msg0}</p></div>
   <div class="stats"><div class="stat"><b>${ses.seen.size}</b><span>Kelime</span></div><div class="stat"><b>${pct}%</b><span>Doğruluk</span></div><div class="stat"><b>${min} dk</b><span>Süre</span></div></div>
-  ${ses.missed.size?`<div class="card"><b>Zorlandıkların</b>${[...ses.missed].map(id=>`<div class="wrow"><div class="grow"><b>${esc(B[id].head)}</b> <span class="mut sm">${esc(B[id].ok)}</span><div class="mut sm">${esc(B[id].tr)}</div></div>${canSpeak?`<button class="spk" onclick="say('${esc(id)}')">${SPK}</button>`:''}</div>`).join('')}</div>`:''}`;
+  ${ses.missed.size?`<div class="card"><b>Zorlandıkların</b>${[...ses.missed].map(id=>`<div class="wrow"><div class="grow"><b>${esc(B[id].head)}</b> <span class="mut sm">${esc(B[id].ok)}</span><div class="mut sm">${esc(B[id].tr)}</div></div>${canSpeak?`<button class="spk" onclick="say('${jq(id)}')">${SPK}</button>`:''}</div>`).join('')}</div>`:''}`;
   $('#sfoot').innerHTML=(ses.mode==='exam'&&navigator.share?'<button class="btn sec wide" style="margin-bottom:8px" onclick="shareExam()">Sonucu paylaş</button>':'')+(more?'<button class="btn wide" onclick="endSession();startReview()">Tekrarlara devam et</button>':'')+`<button class="btn ${more?'ghost':''} wide" onclick="endSession()">Bitir</button>`;
 }
+
+/* ---------- etkinlikler ---------- */
+let act=null;
+function mark(id,ok){const c=S.cards[id];if(!c)return;c.s++;if(ok)c.c++;else c.lw=today();logAdd('r');logAdd(ok?'ok':'no')}
+function pickIds(n,f){ // zayıf kelimelere ağırlık verir; aynı kelime ve aynı anlam bir turda iki kez gelmez
+  const ids=Object.keys(S.cards).filter(id=>B[id]&&(!f||f(B[id]))).map(id=>{const c=S.cards[id];return[id,Math.random()*(1+errs(c))*(10-c.b)]}).sort((a,b)=>b[1]-a[1]).map(x=>x[0]);
+  const out=[],h=new Set(),t=new Set();
+  for(const id of ids){const w=B[id],k=w.head.toLowerCase();if(h.has(k)||t.has(w.tr))continue;h.add(k);t.add(w.tr);out.push(id);if(out.length>=n)break}
+  return shuffle(out);
+}
+function openAct(a){
+  if(act){clearInterval(act.tick);clearTimeout(act.to)}
+  if(canSpeak)speechSynthesis.cancel();
+  act=a;const b=$('#sbody');b.ontouchstart=b.ontouchend=null;b.scrollTop=0;
+  $('#ses').classList.remove('hidden');$('#sfoot').innerHTML='';
+}
+function endAct(){
+  if(!act)return;clearInterval(act.tick);clearTimeout(act.to);if(canSpeak)speechSynthesis.cancel();
+  if(act.wl)try{act.wl.release()}catch(e){}
+  const b=$('#sbody');b.ontouchstart=b.ontouchend=null;
+  act=null;$('#ses').classList.add('hidden');save();render();
+}
+function actBar(i,n,txt){$('#sbar').style.width=(100*i/n)+'%';$('#scount').textContent=txt==null?i+'/'+n:txt}
+function actNext(fn){clearTimeout(act.to);act.i++;fn()}
+const fbHtml=(ok,l1,l2)=>`<div class="fb ${ok?'ok':'no'}"><h3>${ok?'✓ Doğru':'✗ Doğrusu şöyle'}</h3><b style="font-size:18px">${esc(l1)}</b><div class="sm mut">${esc(l2||'')}</div></div>`;
+function actDone(title,emoji,stats,note,again){
+  clearInterval(act.tick);clearTimeout(act.to);save();actBar(1,1,'');
+  const b=$('#sbody');b.ontouchstart=b.ontouchend=null;
+  b.innerHTML=`<div class="ctr" style="margin-top:36px"><div style="font-size:64px">${emoji}</div><h1>${title}</h1><p class="mut">${note||''}</p></div><div class="stats" style="grid-template-columns:repeat(${stats.length},1fr)">${stats.map(([v,l])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div>`;
+  $('#sfoot').innerHTML=`<button class="btn wide" onclick="${again}()">Tekrar oyna</button><button class="btn ghost wide" onclick="endAct()">Bitir</button>`;
+}
+const need=(ids,n,msg)=>{if(ids.length<n){toast(msg||'Bu etkinlik için biraz daha kelime öğrenmelisin');return true}return false};
+
+/* 1. Eşleştirme */
+function startMatch(){
+  const ids=pickIds(6);if(need(ids,6))return;
+  openAct({k:'match',ids,left:shuffle(ids),right:shuffle(ids),done:new Set(),sel:null,err:0,t0:Date.now()});
+  act.tick=setInterval(()=>{if(act&&act.k==='match')$('#scount').textContent=Math.floor((Date.now()-act.t0)/1000)+' sn'},500);
+  $('#scount').textContent='0 sn';drawMatch();
+}
+function drawMatch(bad){
+  const a=act;$('#sbar').style.width=(100*a.done.size/6)+'%';
+  const cell=(id,side)=>{const d=a.done.has(id),sel=a.sel===id&&side==='L',b=bad&&bad[side]===id;
+    return `<button class="opt ${d?'ok':''} ${b?'no':''}" style="${sel?'border-color:var(--pri);background:var(--pri2);':''}${d?'opacity:.45;':''}padding:10px 12px;font-size:15px;min-height:66px" ${d?'disabled':''} onclick="tapMatch('${jq(id)}','${side}')">${esc(side==='L'?B[id].head:B[id].tr)}</button>`};
+  $('#sbody').innerHTML=`<div class="qlabel">Soldan kelimeyi, sağdan anlamını seç</div><div class="grid2" style="margin-top:14px;align-items:start"><div class="opts" style="margin:0">${a.left.map(id=>cell(id,'L')).join('')}</div><div class="opts" style="margin:0">${a.right.map(id=>cell(id,'R')).join('')}</div></div>`;
+}
+function tapMatch(id,side){
+  const a=act;
+  if(side==='L'){a.sel=id;say(id);drawMatch();return}
+  if(!a.sel){toast('Önce soldan bir kelime seç');return}
+  if(a.sel===id){
+    a.done.add(id);mark(id,true);a.sel=null;drawMatch();
+    if(a.done.size===6){
+      const sec=Math.max(1,Math.round((Date.now()-a.t0)/1000));S.best=S.best||{};const rec=!S.best.match||sec<S.best.match;if(rec)S.best.match=sec;
+      actDone('Eşleştirme tamam',a.err?'💪':'🎉',[[sec+' sn','Süre'],[a.err,'Hata'],[S.best.match+' sn','En iyi süren']],rec?'Yeni rekor!':'','startMatch');
+    }
+  }else{a.err++;mark(a.sel,false);const bad={L:a.sel,R:id};a.sel=null;drawMatch(bad);a.to=setTimeout(()=>{if(act===a)drawMatch()},600)}
+}
+
+/* 2. Cümle kurma */
+const hasEx=w=>{if(!w.ex||!w.ext)return false;const n=w.ex.split(' ').length;return n>=3&&n<=9};
+const chipSt='display:inline-block;min-height:0;padding:9px 13px;margin:4px;font-size:17px';
+function startBuild(){
+  const ids=pickIds(6,hasEx);if(need(ids,3,'Önce örnek cümlesi olan birkaç kelime öğren (A1 ve A2 kelimeleri)'))return;
+  openAct({k:'build',ids,i:0,ok:0});nextBuild();
+}
+function nextBuild(){
+  const a=act;if(a.i>=a.ids.length)return actDone('Cümle kurma tamam',a.ok===a.ids.length?'🎉':'💪',[[a.ok+' / '+a.ids.length,'Doğru cümle']],'','startBuild');
+  const w=B[a.ids[a.i]];a.tok=w.ex.replace(/[.!?]+$/,'').split(' ');a.ans=[];a.locked=false;
+  do{a.pool=shuffle(a.tok.map((t,i)=>i))}while(a.tok.length>2&&a.pool.every((v,i)=>v===i));
+  actBar(a.i,a.ids.length);drawBuild();
+}
+function drawBuild(){
+  const a=act,w=B[a.ids[a.i]],chip=(i,fn)=>`<button class="opt" style="${chipSt}" onclick="${fn}(${i})">${esc(a.tok[i])}</button>`;
+  $('#sbody').innerHTML=`<div class="qlabel">Kelimeleri sıraya dizerek cümleyi kur</div><div class="mean" style="font-size:22px">${esc(w.ext)}</div>
+  <div class="ex" style="min-height:104px">${a.ans.map(i=>chip(i,'unBuild')).join('')||'<span class="mut">Aşağıdaki kelimelere sırayla dokun</span>'}</div>
+  <div class="ctr" style="margin-top:18px">${a.pool.filter(i=>!a.ans.includes(i)).map(i=>chip(i,'addBuild')).join('')}</div>`;
+  if(!a.locked)$('#sfoot').innerHTML=`<button class="btn wide" ${a.ans.length===a.tok.length?'':'disabled'} onclick="checkBuild()">Kontrol et</button>`;
+}
+function addBuild(i){if(act.locked)return;act.ans.push(i);drawBuild()}
+function unBuild(i){if(act.locked)return;act.ans=act.ans.filter(x=>x!==i);drawBuild()}
+function checkBuild(){
+  const a=act,w=B[a.ids[a.i]];a.locked=true;
+  const ok=a.ans.map(i=>a.tok[i]).join(' ')===a.tok.join(' ');mark(w.id,ok);if(ok)a.ok++;speak(w.ex);
+  $('#sfoot').innerHTML=fbHtml(ok,w.ex,w.ext)+'<button class="btn wide" onclick="actNext(nextBuild)">Devam</button>';
+}
+
+/* 3. Harf dizme */
+const spellOK=w=>/^[A-Za-z]{3,10}$/.test(w.head);
+function startSpell(){
+  const ids=pickIds(8,spellOK);if(need(ids,4))return;
+  openAct({k:'spell',ids,i:0,ok:0});nextSpell();
+}
+function nextSpell(){
+  const a=act;if(a.i>=a.ids.length)return actDone('Harf dizme tamam',a.ok===a.ids.length?'🎉':'💪',[[a.ok+' / '+a.ids.length,'İlk denemede doğru']],'','startSpell');
+  const w=B[a.ids[a.i]];a.let=w.head.toLowerCase().split('');a.ans=[];a.tries=0;a.locked=false;
+  let g=0;do{a.pool=shuffle(a.let.map((t,i)=>i))}while(g++<20&&a.pool.map(i=>a.let[i]).join('')===a.let.join(''));
+  actBar(a.i,a.ids.length);drawSpell();
+}
+function drawSpell(){
+  const a=act,w=B[a.ids[a.i]],tile=(i,fn)=>`<button class="opt" style="display:inline-block;min-height:0;width:44px;padding:9px 0;margin:3px;font-size:22px;text-align:center;font-weight:700" onclick="${fn}(${i})">${esc(a.let[i])}</button>`;
+  $('#sbody').innerHTML=`<div class="qlabel">Harfleri sıraya dizerek kelimeyi yaz</div><div class="mean" style="font-size:28px">${esc(w.tr)}</div><div class="mut sm">${esc(trPos(w.pos))}${w.hint?' · '+esc(w.hint):''}</div>
+  <div class="ex ctr" style="min-height:76px">${a.ans.map(i=>tile(i,'unSpell')).join('')||'<span class="mut">Harflere sırayla dokun</span>'}</div>
+  <div class="ctr" style="margin-top:18px">${a.pool.filter(i=>!a.ans.includes(i)).map(i=>tile(i,'addSpell')).join('')}</div>`;
+  if(!a.locked)$('#sfoot').innerHTML=`<div class="row">${canSpeak?`<button class="btn ghost grow" onclick="say('${jq(w.id)}')">🔊 Dinle</button>`:''}<button class="btn ghost grow" onclick="giveUpSpell()">Bilmiyorum</button></div>`;
+}
+function unSpell(i){if(act.locked)return;act.ans=act.ans.filter(x=>x!==i);drawSpell()}
+function addSpell(i){
+  const a=act,w=B[a.ids[a.i]];if(a.locked)return;a.ans.push(i);
+  if(a.ans.length<a.let.length){drawSpell();return}
+  if(a.ans.map(i=>a.let[i]).join('')===a.let.join('')){
+    a.locked=true;mark(w.id,a.tries===0);if(a.tries===0)a.ok++;say(w.id);drawSpell();
+    $('#sfoot').innerHTML=fbHtml(true,w.head+' · '+w.ok,w.tr)+'<button class="btn wide" onclick="actNext(nextSpell)">Devam</button>';
+    a.to=setTimeout(()=>{if(act===a)actNext(nextSpell)},1400);
+  }else{a.tries++;if(a.tries>=2){drawSpell();giveUpSpell()}else{toast('Olmadı, bir daha dene');a.ans=[];drawSpell()}}
+}
+function giveUpSpell(){
+  const a=act,w=B[a.ids[a.i]];if(a.locked)return;a.locked=true;mark(w.id,false);say(w.id);
+  $('#sfoot').innerHTML=fbHtml(false,w.head+' · '+w.ok,w.tr)+'<button class="btn wide" onclick="actNext(nextSpell)">Devam</button>';
+}
+
+/* 4. Hızlı tur */
+function startSpeed(){
+  if(need(pickIds(6),6))return;
+  openAct({k:'speed',score:0,miss:0,end:Date.now()+60000,last:null});
+  act.tick=setInterval(()=>{const a=act;if(!a||a.k!=='speed')return;const left=Math.max(0,a.end-Date.now());actBar(left,60000,Math.ceil(left/1000)+' sn');if(left<=0)endSpeed()},200);
+  nextSpeed();
+}
+function nextSpeed(){
+  const a=act,id=pickIds(1,w=>w.id!==a.last)[0],w=B[id];a.cur=id;a.last=id;a.locked=false;
+  $('#sbody').innerHTML=`<div class="row" style="margin-top:6px"><div class="qlabel grow" style="margin:0">Türkçesi hangisi?</div><span class="tag">${a.score} doğru</span></div><div class="word">${esc(w.head)}</div><div class="okn">${esc(w.ok)}</div>
+  <div class="opts">${shuffle([w,...distract(w)]).map(o=>`<button class="opt" data-ok="${o.id===w.id?1:0}" onclick="tapSpeed(this)">${esc(o.tr)}</button>`).join('')}</div>`;
+}
+function tapSpeed(btn){
+  const a=act;if(a.locked)return;a.locked=true;const ok=btn.dataset.ok==='1';mark(a.cur,ok);
+  if(ok){a.score++;nextSpeed();return}
+  a.miss++;btn.classList.add('no');document.querySelectorAll('#sbody .opt').forEach(b=>{if(b.dataset.ok==='1')b.classList.add('ok')});
+  a.to=setTimeout(()=>{if(act===a&&Date.now()<a.end)nextSpeed()},800);
+}
+function endSpeed(){
+  const a=act;S.best=S.best||{};const rec=a.score>(S.best.speed||0);if(rec)S.best.speed=a.score;
+  actDone('Süre doldu',rec?'🏆':'⏱️',[[a.score,'Doğru'],[a.miss,'Yanlış'],[S.best.speed||0,'Rekorun']],rec&&a.score?'Yeni rekor!':'','startSpeed');
+}
+
+/* 5. Doğru mu yanlış mı */
+function startTF(){
+  const ids=pickIds(15);if(need(ids,6))return;
+  openAct({k:'tf',ids,i:0,ok:0});nextTF();
+}
+function nextTF(){
+  const a=act;if(a.i>=a.ids.length)return actDone('Tur tamam',a.ok>=a.ids.length*.8?'🎉':'💪',[[a.ok+' / '+a.ids.length,'Doğru karar']],'','startTF');
+  const w=B[a.ids[a.i]];a.truth=Math.random()<.5;a.locked=false;
+  const o=a.truth?w:(cfs(w)[0]||distract(w)[0]||w);if(o===w)a.truth=true;a.shown=o.tr;
+  actBar(a.i,a.ids.length);
+  const b=$('#sbody');
+  b.innerHTML=`<div class="qlabel">Bu anlam doğru mu?</div><div class="card ctr" style="margin-top:22px;padding:30px 16px"><div class="word" style="margin:0">${esc(w.head)}</div><div class="okn">${esc(w.ok)}</div><div class="mut" style="margin:14px 0 4px">anlamı</div><div class="mean" style="margin:0">${esc(a.shown)}</div></div><div class="ctr mut sm">Sola kaydır: yanlış · Sağa kaydır: doğru</div>`;
+  b.ontouchstart=e=>{a.x=e.touches[0].clientX};
+  b.ontouchend=e=>{if(a.x==null)return;const dx=e.changedTouches[0].clientX-a.x;a.x=null;if(Math.abs(dx)>70)ansTF(dx>0)};
+  $('#sfoot').innerHTML='<div class="grid2"><button class="btn sec" style="color:var(--no)" onclick="ansTF(false)">✗ Yanlış</button><button class="btn sec" style="color:var(--ok)" onclick="ansTF(true)">✓ Doğru</button></div>';
+  say(w.id);
+}
+function ansTF(v){
+  const a=act;if(!a||a.k!=='tf'||a.locked)return;a.locked=true;const w=B[a.ids[a.i]],ok=v===a.truth;mark(w.id,ok);
+  if(ok){a.ok++;$('#sfoot').innerHTML=fbHtml(true,w.head,w.tr);a.to=setTimeout(()=>{if(act===a)actNext(nextTF)},650)}
+  else $('#sfoot').innerHTML=fbHtml(false,w.head+' = '+w.tr,a.truth?'Gösterilen anlam doğruydu.':'Gösterilen anlam yanlıştı.')+'<button class="btn wide" onclick="actNext(nextTF)">Devam</button>';
+}
+
+/* 6. Dikte */
+const dn=s=>s.toLowerCase().replace(/[’`´]/g,"'").replace(/[^a-z0-9' ]/g,' ').replace(/\s+/g,' ').trim();
+function startDict(){
+  const ids=pickIds(5,hasEx);if(need(ids,3,'Önce örnek cümlesi olan birkaç kelime öğren (A1 ve A2 kelimeleri)'))return;
+  openAct({k:'dict',ids,i:0,ok:0});nextDict();
+}
+function nextDict(){
+  const a=act;if(a.i>=a.ids.length)return actDone('Dikte tamam',a.ok===a.ids.length?'🎉':'💪',[[a.ok+' / '+a.ids.length,'Doğru cümle']],'','startDict');
+  const w=B[a.ids[a.i]];a.locked=false;actBar(a.i,a.ids.length);
+  $('#sbody').innerHTML=`<div class="qlabel">Cümleyi dinle ve yaz</div><div class="ctr" style="margin:22px 0 4px"><button class="spk big" onclick="sayEx('${jq(w.id)}')">${SPK}</button><div style="margin-top:10px"><button class="btn ghost smb" onclick="speak(B['${jq(w.id)}'].ex,1)">🐢 Yavaş dinle</button></div></div>
+  <textarea class="tin" id="din" rows="2" style="font-size:19px;text-align:left;resize:none" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Duyduğun cümle…"></textarea>`;
+  $('#sfoot').innerHTML='<button class="btn wide" onclick="checkDict()">Kontrol et</button><button class="btn ghost wide" onclick="checkDict(1)">Bilmiyorum</button>';
+  sayEx(w.id);
+}
+function checkDict(skip){
+  const a=act,w=B[a.ids[a.i]];if(a.locked)return;const v=$('#din').value;
+  if(!skip&&!v.trim()){$('#din').focus();return}
+  a.locked=true;const ok=!skip&&dn(v)===dn(w.ex);mark(w.id,ok);if(ok)a.ok++;$('#din').disabled=true;$('#din').style.borderColor=ok?'var(--ok)':'var(--no)';
+  $('#sfoot').innerHTML=fbHtml(ok,w.ex,w.ext)+'<button class="btn wide" onclick="actNext(nextDict)">Devam</button>';
+}
+
+/* 7. Eller serbest dinleme */
+function startHF(){
+  let ids=S.tn.ids.filter(id=>B[id]);ids=ids.concat(pickIds(30).filter(id=>!ids.includes(id))).slice(0,30);
+  if(need(ids,1))return;
+  openAct({k:'hf',ids,i:0,paused:false,gen:0});
+  if(navigator.wakeLock)navigator.wakeLock.request('screen').then(l=>{if(act&&act.k==='hf')act.wl=l;else l.release()}).catch(()=>{});
+  playHF();
+}
+function sayQ(text,lang,slow,cb){
+  const a=act;let u,done=false;
+  if(lang==='tr'){u=new SpeechSynthesisUtterance(text);u.lang='tr-TR';const v=voices.find(x=>/^tr/i.test(x.lang));if(v)u.voice=v}
+  else u=mkUtter(text,slow);
+  const fin=()=>{if(done)return;done=true;clearTimeout(t);if(act===a&&!a.paused)a.to=setTimeout(cb,650)};
+  const t=setTimeout(fin,12000);u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);
+}
+function playHF(){
+  const a=act;if(!a||a.k!=='hf'||a.paused)return;
+  if(a.i>=a.ids.length)return actDone('Dinleme bitti','🎧',[[a.ids.length,'Kelime dinlendi']],'','startHF');
+  const w=B[a.ids[a.i]],g=++a.gen,en=w.head.replace(',',' ,');
+  actBar(a.i,a.ids.length);drawHF();
+  const steps=[[en,'en',0],[w.tr.replace(/\(.*?\)/g,'').replace(/;/g,','),'tr',0],[en,'en',1]];if(w.ex)steps.push([w.ex,'en',0]);
+  let k=0;const run=()=>{if(act!==a||a.paused||a.gen!==g)return;if(k>=steps.length){a.i++;a.to=setTimeout(playHF,900);return}const st=steps[k++];sayQ(st[0],st[1],st[2],run)};
+  speechSynthesis.cancel();a.to=setTimeout(run,150);
+}
+function drawHF(){
+  const a=act,w=B[a.ids[a.i]];
+  $('#sbody').innerHTML=`<div class="qlabel">Eller serbest dinleme · sadece dinle</div><div class="ctr" style="margin-top:30px"><div class="word">${esc(w.head)}</div><div class="okn">${esc(w.ok)}</div><div class="mean">${esc(w.tr)}</div>${w.ex?`<div class="ex"><p>${esc(w.ex)}</p><p>${esc(w.ext)}</p></div>`:''}</div>`;
+  $('#sfoot').innerHTML=`<div class="grid2"><button class="btn sec" onclick="toggleHF()">${a.paused?'▶ Devam et':'⏸ Duraklat'}</button><button class="btn sec" onclick="skipHF()">⏭ Sonraki</button></div>`;
+}
+function toggleHF(){const a=act;a.paused=!a.paused;a.gen++;clearTimeout(a.to);speechSynthesis.cancel();if(a.paused)drawHF();else playHF()}
+function skipHF(){const a=act;a.gen++;clearTimeout(a.to);speechSynthesis.cancel();a.i++;a.paused=false;playHF()}
 
 /* ---------- başlat ---------- */
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!ses)render()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!ses&&!act)render()});
 save();render();
 </script>
 </body>
