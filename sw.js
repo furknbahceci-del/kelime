@@ -1,5 +1,5 @@
 // Kelime Defterim — çevrimdışı önbellek + günlük hatırlatma
-const CACHE = 'kelime-v20';
+const CACHE = 'kelime-v21';
 const FILES = ['./', 'index.html', 'words.js', 'icons.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -19,10 +19,10 @@ self.addEventListener('fetch', e => {
   e.waitUntil(net.catch(() => {}));
   e.respondWith((async () => {
     const cached = await caches.match(e.request, { ignoreSearch: true });
-    if (!cached) return net.catch(() => caches.match('index.html'));
+    if (!cached) return net.catch(() => e.request.mode === 'navigate' ? caches.match('index.html') : Response.error());
     // Önce ağ (güncellemeler gelsin); ağ yoksa ya da 2,5 saniyede yanıt vermezse önbellek
     const r = await Promise.race([net.catch(() => null), new Promise(res => setTimeout(() => res(null), 2500))]);
-    return r || cached;
+    return (r && r.ok) ? r : cached;
   })());
 });
 
