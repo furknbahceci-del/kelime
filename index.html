@@ -178,6 +178,24 @@ nav{z-index:5;isolation:isolate}
 .stars{font-size:34px;letter-spacing:6px;color:#f59e0b;margin-top:2px}.stars i{font-style:normal;color:var(--line)}
 #ses .row>.qlabel{flex:none;margin-right:auto;align-self:center}
 .scoretag{font-size:15px;padding:5px 12px;background:var(--ac2);color:var(--ac)}
+
+/* ---------- kelime kartı ---------- */
+:root{--ac:#6366f1;--ac2:rgba(99,102,241,.16)}
+.wc-top{background:linear-gradient(170deg,var(--ac2),transparent 75%),var(--card);border-radius:24px;padding:16px 16px 18px;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,.05);margin-top:10px}
+.wc-top .word{font-size:42px;margin:14px 0 8px;line-height:1.1}
+.okpill{display:inline-block;background:var(--ac2);color:var(--ac);font-size:20px;font-weight:800;padding:6px 16px;border-radius:999px;letter-spacing:.02em}
+.wc-btns{display:flex;gap:10px;justify-content:center;margin-top:16px}
+.lbtn{display:inline-flex;align-items:center;gap:8px;min-height:46px;padding:0 20px;border-radius:23px;background:var(--ac);color:#fff;font-weight:700;font-size:15px;transition:transform .08s}
+.lbtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.lbtn.sec{background:var(--ac2);color:var(--ac)}.lbtn:active{transform:scale(.95)}
+.wc-sec{background:var(--card);border-radius:16px;padding:12px 14px 13px;margin-top:10px;border-left:5px solid var(--ac);box-shadow:0 1px 2px rgba(0,0,0,.05);text-align:left;width:100%;display:block}
+.wc-sec p{margin:0}.wc-sec p+p{color:var(--mut);margin-top:3px;font-size:15px}
+.wc-sec.exs{border-left-color:#3b82f6}.wc-sec.mns{border-left-color:#f59e0b;background:var(--amb2)}
+.lbl{display:block;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin-bottom:3px}
+.wc-sec .mean{margin:0;font-size:24px}
+.wc-note{margin-top:10px}.wc-note summary{list-style:none;color:var(--mut);font-size:14px;font-weight:600;padding:8px 2px;cursor:pointer}
+.wc-note summary::-webkit-details-marker{display:none}
+.wc-note .note{margin-top:2px}
 </style>
 </head>
 <body>
@@ -252,6 +270,7 @@ function load(){
   for(const d in s.log){const l=s.log[d];if(!isObj(l)){delete s.log[d];continue}for(const k of ['n','r','ok','no','a'])l[k]=+l[k]||0}
   s.set=Object.assign({daily:20,accent:'en-US',rate:0.9,remH:20,remM:0},s.set||{});
   if(!isObj(s.tn)||!Array.isArray(s.tn.ids))s.tn={day:today(),ids:[]};if(!Array.isArray(s.custom))s.custom=[];if(!Array.isArray(s.exams))s.exams=[];
+  if(!isObj(s.miss)){s.miss={};const t=today();for(const id in s.cards){const c=s.cards[id];if(c&&c.lw>=t-7&&c.s>c.c)s.miss[id]={n:1,d:c.lw}}} // ilk kurulum: son 7 günün yanlışları
   if(!s.m1){if(s.best)delete s.best.speed;s.m1=1} // eski hızlı tur rekoru aynı kelimelerle yapılmıştı: bir kez sıfırla
   return s;
 }
@@ -280,6 +299,8 @@ function logAdd(k){const d=today();const l=S.log[d]=S.log[d]||{n:0,r:0,ok:0,no:0
 const dueCards=(t=today())=>Object.keys(S.cards).filter(id=>B[id]&&S.cards[id].d<=t).sort((a,b)=>S.cards[a].d-S.cards[b].d);
 const errs=c=>c.s-c.c;
 const isHard=c=>c.f||(c.b<LEARNED&&(c.l>=2||errs(c)>=3));
+const missIds=()=>Object.keys(S.miss).filter(id=>B[id]&&S.cards[id]).sort((a,b)=>S.miss[b].n-S.miss[a].n||S.miss[b].d-S.miss[a].d);
+function addMiss(id){const m=S.miss[id]=S.miss[id]||{n:0,d:0};m.n++;m.d=today()}
 const hardIds=()=>Object.keys(S.cards).filter(id=>B[id]&&isHard(S.cards[id])).sort((a,b)=>errs(S.cards[b])-errs(S.cards[a]));
 const SEP='\u0001';
 function confPairs(){
@@ -363,7 +384,7 @@ function render(){
 }
 const THEME={ // her çalışmanın simgesi ve rengi: ana ekrandaki buton ile içindeki ekran aynı rengi kullanır
   'Yeni kelimeler':['🌱','#10b981'],'Tekrar':['🔁','#3b82f6'],'Akşam tekrarı':['🌙','#8b5cf6'],
-  '2 dakikalık tur':['⚡','#f59e0b'],'Zorlandıklarım':['🎯','#ef4444'],'Zor kelimeler':['🎯','#ef4444'],'Yoğun çalışma':['💪','#ef4444'],'Karıştırdığın çiftler':['🔀','#ef4444'],
+  '2 dakikalık tur':['⚡','#f59e0b'],'Yanlışlarım':['❌','#ef4444'],'Zorlandıklarım':['🎯','#f97316'],'Zor kelimeler':['🎯','#ef4444'],'Yoğun çalışma':['💪','#ef4444'],'Karıştırdığın çiftler':['🔀','#ef4444'],
   'Dinleme':['🎧','#3b82f6'],'Yazma':['✍️','#10b981'],'Konuşma':['🎤','#ec4899'],'Cümle tamamlama':['🧩','#8b5cf6'],'Haftalık sınav':['📝','#0ea5e9'],
   'Eşleştirme':['🧩','#f59e0b'],'Cümle kurma':['🧱','#f97316'],'Harf dizme':['🔤','#3b82f6'],'Hızlı tur':['⏱️','#10b981'],'Doğru mu yanlış mı':['✅','#14b8a6'],'Dikte':['📝','#8b5cf6'],'Eller serbest dinleme':['🎧','#0ea5e9']};
 const ACTN={match:'Eşleştirme',build:'Cümle kurma',spell:'Harf dizme',speed:'Hızlı tur',tf:'Doğru mu yanlış mı',dict:'Dikte',hf:'Eller serbest dinleme'};
@@ -399,7 +420,7 @@ function vHome(){
   const l=S.log[t]||{n:0,r:0};
   const h=new Date().getHours(),hi=h<12?'Günaydın':h<18?'İyi günler':'İyi akşamlar';
   const revDone=due===0&&c.total>0,newDone=left===0||remain===0;
-  const nxt=nextNew(1)[0];
+  const nxt=nextNew(1)[0],nm=missIds().length;
   return `
   <div class="hero"><div class="row"><div class="grow" style="position:relative;z-index:1"><div class="sm" style="opacity:.88">${dayStr(t,{weekday:'long',month:'long'})}</div><h1>${hi} 👋</h1><div class="streak">🔥 ${streak()} günlük seri</div></div><div class="ring" style="--p:${Math.min(100,Math.round(100*nw/goal))}"><b>${nw}</b><span>/ ${goal} yeni</span></div></div></div>
   <div class="card">
@@ -412,6 +433,7 @@ function vHome(){
   ${due>goal*3?'<div class="card sm" style="background:var(--amb2);color:var(--amb)">Biriken tekrarın çok. Bugün yeni kelimeyi boş ver, önce tekrarları bitir — unutmamanın yolu bu.</div>':''}
   <h2>Kısa tekrarlar</h2>
   <div class="grid2">
+    <button class="tile" style="grid-column:1/-1" ${nm?'':'disabled'} onclick="startMiss()"><b>❌ Yanlışlarım</b><span>${nm?nm+' kelime düzeltilmeyi bekliyor · doğru bilince listeden çıkar':'Bekleyen yanlışın yok'}</span></button>
     <button class="tile" ${c.total<4?'disabled':''} onclick="startQuick()"><b>⚡ 2 dakikalık tur</b><span>10 soru, zayıf kelimelerden</span></button>
     <button class="tile" onclick="tab='hard';render()"><b>🎯 Zorlandıklarım</b><span>${c.hard} kelime · liste ve çalışma</span></button>
     <button class="tile" ${c.total<4||!canSpeak?'disabled':''} onclick="startListen()"><b>🎧 Dinleme</b><span>Duy, anlamını bul, yaz</span></button>
@@ -456,11 +478,13 @@ function showTips(){
 
 /* ---------- Zorlandıklarım ---------- */
 function vHard(){
-  const ids=hardIds(),pairs=confPairs().slice(0,8);
+  const ids=hardIds(),pairs=confPairs().slice(0,8),ms=missIds();
   return `<button class="back" onclick="tab='home';render()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Bugün</button>
   <h1>Zorlandıklarım</h1><div class="mut sm">2 kez unuttuğun, 3 kez yanlış yaptığın ya da yıldızladığın kelimeler burada toplanır. Kelimeyi öğrenince (5. basamak) listeden çıkar.</div>
   ${ids.length?`<div class="grid2" style="margin-top:14px"><button class="btn" onclick="startIntense()">Yoğun çalış</button><button class="btn sec" onclick="startHard()">Hızlı tur</button></div>
   <div class="mut sm" style="margin-top:6px">Yoğun çalışma: her kelimeyi dinleme, anlam, cümle ve yazma ile dört kez sorar.</div>`:''}
+  ${ms.length?`<div class="card"><div class="row"><b class="grow">Son yanlışların (${ms.length})</b><button class="btn smb" onclick="startMiss()">Düzelt</button></div><div class="mut sm">Tekrar, etkinlik ya da sınavda yanlış yaptığın her kelime buraya düşer; "Düzelt"te doğru bilince çıkar.</div>
+    ${ms.slice(0,30).map(id=>`<button class="wrow" onclick="showWord('${jq(id)}')"><div class="grow"><b>${esc(B[id].head)}</b> <span class="mut sm">${esc(B[id].ok)}</span><div class="mut sm">${esc(B[id].tr)}</div></div><span class="tag">${S.miss[id].n} yanlış</span></button>`).join('')}</div>`:''}
   ${pairs.length?`<div class="card"><div class="row"><b class="grow">Karıştırdığın çiftler</b><button class="btn smb sec" onclick="startPairs()">Çalış</button></div>
     ${pairs.map(([a,b,n])=>`<div class="wrow"><div class="grow"><b>${esc(B[a].head)}</b> <span class="mut">↔</span> <b>${esc(B[b].head)}</b><div class="mut sm">${esc(B[a].tr)} · ${esc(B[b].tr)}</div></div><span class="tag">${n} kez</span></div>`).join('')}</div>`:''}
   <div class="card">${ids.length?ids.map(id=>{const w=B[id],c=S.cards[id],cf=cfs(w)[0];
@@ -499,13 +523,17 @@ function wRows(){
 }
 function wordCard(w,opt){
   opt=opt||{};
-  return `<div><span class="tag lv-${w.lv}">${lvName(w.lv)}</span> <span class="mut sm">${esc(trPos(w.pos))}${w.hint?' · '+esc(w.hint):''}</span></div>
-  <div class="word">${esc(w.head)}</div>
-  <div class="row"><div class="okn grow">${esc(w.ok)}</div>${canSpeak?`<button class="spk" onclick="say('${jq(w.id)}')">${SPK}</button><button class="spk" onclick="say('${jq(w.id)}',1)" title="Yavaş">🐢</button>`:''}</div>
-  <div class="mean">${esc(w.tr)}</div>
-  ${w.ex?`<div class="ex" ${canSpeak?`onclick="sayEx('${jq(w.id)}')"`:''}><p>${canSpeak?'🔊 ':''}${esc(w.ex)}</p><p>${esc(w.ext)}</p></div>`:''}
-  ${w.mn?`<div class="ex" style="background:var(--amb2)"><p>💡 ${esc(w.mn)}</p></div>`:''}
-  <textarea class="note" rows="2" placeholder="Kendi ipucun: bu kelime sana neyi hatırlatıyor?" onchange="setNote('${jq(w.id)}',this.value)">${esc((S.cards[w.id]&&S.cards[w.id].n)||notes[w.id]||'')}</textarea>`;
+  const note=(S.cards[w.id]&&S.cards[w.id].n)||notes[w.id]||'';
+  return `<div class="wc-top">
+    <div class="row"><span class="tag lv-${w.lv}">${lvName(w.lv)}</span><span class="mut sm">${esc(trPos(w.pos))}${w.hint?' · '+esc(w.hint):''}</span></div>
+    <div class="word">${esc(w.head)}</div>
+    ${w.ok?`<div><span class="okpill">${esc(w.ok)}</span></div>`:''}
+    ${canSpeak?`<div class="wc-btns"><button class="lbtn" onclick="say('${jq(w.id)}')">${SPK}Dinle</button><button class="lbtn sec" onclick="say('${jq(w.id)}',1)">🐢 Yavaş</button></div>`:''}
+  </div>
+  <div class="wc-sec"><span class="lbl">Türkçesi</span><div class="mean">${esc(w.tr)}</div></div>
+  ${w.ex?`<button class="wc-sec exs" ${canSpeak?`onclick="sayEx('${jq(w.id)}')"`:''}><span class="lbl">Örnek cümle${canSpeak?' · dinlemek için dokun':''}</span><p>${canSpeak?'🔊 ':''}${esc(w.ex)}</p><p>${esc(w.ext)}</p></button>`:''}
+  ${w.mn?`<div class="wc-sec mns"><span class="lbl">💡 Hafıza ipucu</span><p>${esc(w.mn)}</p></div>`:''}
+  <details class="wc-note" ${note?'open':''}><summary>✏️ Kendi ipucunu yaz</summary><textarea class="note" rows="2" placeholder="Bu kelime sana neyi hatırlatıyor?" onchange="setNote('${jq(w.id)}',this.value)">${esc(note)}</textarea></details>`;
 }
 const notes={};
 function setNote(id,v){if(S.cards[id]){S.cards[id].n=v;save()}else notes[id]=v}
@@ -696,6 +724,10 @@ function weakPool(n,f){ // kısa tekrarlar: kelimeler sırayla döner, sıradaki
   S.qc=(S.qc||0)+1;out.forEach(id=>{S.cards[id].q=S.qc});
   return shuffle(out);
 }
+function startMiss(){
+  const ids=missIds().slice(0,15);
+  startSession({mode:'fix',queue:shuffle(ids).map((id,i)=>q(i%2?'type':'mc_tr_en',id)),title:'Yanlışlarım'});
+}
 function startQuick(){startSession({mode:'quick',queue:weakPool(10).map(id=>q(typeFor(id),id)),title:'2 dakikalık tur'})}
 function startHard(){startSession({mode:'quick',queue:weakPool(15,isHard).map(id=>q(Math.random()<.5?'mc_tr_en':'type',id)),title:'Zor kelimeler'})}
 function startListen(){startSession({mode:'quick',queue:weakPool(10).map((id,i)=>q(i%2?'listen_type':'listen_mc',id)),title:'Dinleme'})}
@@ -752,7 +784,8 @@ function renderItem(){
     say(w.id);return;
   }
   if(it.type==='intro'){
-    body.innerHTML='<div class="qlabel">'+(ses.mode==='learn'?'Yeni kelime':'Tekrar bak')+' · dinle ve sesli tekrar et</div>'+wordCard(w);
+    const ins=ses.queue.filter(x=>x.type==='intro'&&!x.re),k=ins.indexOf(it)+1;
+    body.innerHTML='<div class="qlabel">'+(ses.mode==='learn'?'Yeni kelime':'Tekrar bak')+(k?' '+k+' / '+ins.length:'')+' · dinle, sesli tekrar et</div>'+wordCard(w);
     foot.innerHTML='<button class="btn wide" onclick="next()">Anladım, devam</button>';
     say(w.id);return;
   }
@@ -819,6 +852,8 @@ function answer(ok){
   const c=S.cards[w.id];c.s++;if(ok)c.c++;
   if(!ok){c.lw=today();if(ses.conf&&B[ses.conf]&&ses.conf!==w.id){c.cf=c.cf||{};c.cf[ses.conf]=(c.cf[ses.conf]||0)+1}}
   ses.conf=null;
+  if(!ok&&ses.mode!=='fix')addMiss(w.id);               // her yanlış "Yanlışlarım" listesine girer
+  if(ses.mode==='fix'&&first&&!it.re&&ok)delete S.miss[w.id]; // orada ilk denemede doğru bilinen listeden çıkar
   if(first&&!it.re){
     if(ses.mode==='review')grade(w.id,ok);
     else if((ses.mode==='quick'||ses.mode==='exam')&&!ok){if(c.lq!==today()){c.l++;c.b=Math.max(1,c.b-1);c.lq=today()}c.d=c.t===today()?today()+1:Math.min(c.d,today())}
@@ -839,7 +874,7 @@ function finish(){
   save();
   const tot=ses.ok+ses.no,pct=tot?Math.round(100*ses.ok/tot):100,min=Math.max(1,Math.round((Date.now()-ses.t0)/6e4));
   const more=ses.mode==='review'&&dueCards().length;
-  let msg0={learn:'Bu kelimeler yarın ilk tekrarına gelecek. Uyumadan önce "Akşam tekrarı"nı yapmayı unutma.',review:more?`Hâlâ ${more} tekrar bekliyor.`:'Bugünün tekrarları bitti. Yarın görüşürüz!',quick:ses.missed.size?'Yanlış yaptıkların en geç yarın tekrar sorulacak.':'Hepsini doğru bildin!',free:'Güzel. Bu kelimeler yarın tekrar karşına çıkacak.'}[ses.mode];
+  let msg0={learn:'Bu kelimeler yarın ilk tekrarına gelecek. Uyumadan önce "Akşam tekrarı"nı yapmayı unutma.',review:more?`Hâlâ ${more} tekrar bekliyor.`:'Bugünün tekrarları bitti. Yarın görüşürüz!',quick:ses.missed.size?'Yanlış yaptıkların en geç yarın tekrar sorulacak.':'Hepsini doğru bildin!',free:'Güzel. Bu kelimeler yarın tekrar karşına çıkacak.',fix:missIds().length?'Doğru bildiklerin listeden çıktı. Kalan '+missIds().length+' kelime seni bekliyor.':'Bütün yanlışlarını düzelttin!'}[ses.mode];
   if(ses.msg)msg0=ses.msg;
   if(ses.hardStep){S.hd=today();ses.seen.forEach(id=>{if(S.cards[id])S.cards[id].hi=today()})}
   if(ses.mode==='exam'){
@@ -856,7 +891,7 @@ function finish(){
 
 /* ---------- etkinlikler ---------- */
 let act=null;
-function mark(id,ok){const c=S.cards[id];if(!c)return;c.s++;if(ok)c.c++;else c.lw=today();logAdd('a');logAdd(ok?'ok':'no');if(act){act.combo=ok?(act.combo||0)+1:0;setCombo(act.combo)}}
+function mark(id,ok){const c=S.cards[id];if(!c)return;c.s++;if(ok)c.c++;else c.lw=today();logAdd('a');logAdd(ok?'ok':'no');if(!ok)addMiss(id);if(act){act.combo=ok?(act.combo||0)+1:0;setCombo(act.combo)}}
 function pickIds(n,f){ // öğrenilen kelimeler sırayla döner: en uzun süredir hiçbir etkinlikte çıkmayan önce gelir
   const ids=Object.keys(S.cards).filter(id=>B[id]&&(!f||f(B[id]))).map(id=>[id,(S.cards[id].u||0)+Math.random()*.9]).sort((a,b)=>a[1]-b[1]).map(x=>x[0]);
   const out=[],h=new Set(),t=new Set();
