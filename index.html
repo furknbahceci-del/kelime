@@ -336,7 +336,7 @@ function pushState(){ // servis çalışanının hatırlatma için okuyacağı �
 const dayAct=l=>l?(l.n||0)+(l.r||0)+(l.a||0):0; // o gün yapılan her şey: yeni kelime + tekrar + etkinlik
 function lastActiveDay(){let m=0;for(const d in S.log){if(dayAct(S.log[d])>0&&+d>m)m=+d}return m}
 function logAdd(k){const d=today();const l=S.log[d]=S.log[d]||{n:0,r:0,ok:0,no:0,a:0};l[k]=(l[k]||0)+1}
-const dueCards=(t=today())=>Object.keys(S.cards).filter(id=>B[id]&&S.cards[id].d<=t).sort((a,b)=>S.cards[a].d-S.cards[b].d);
+const dueCards=(t=today())=>Object.keys(S.cards).filter(id=>B[id]&&S.cards[id].d<=t).sort((a,b)=>(S.miss[a]?0:1)-(S.miss[b]?0:1)||S.cards[a].d-S.cards[b].d);
 const errs=c=>c.s-c.c;
 const isHard=c=>c.f||(c.b<LEARNED&&(c.l>=2||errs(c)>=3));
 const missIds=()=>Object.keys(S.miss).filter(id=>B[id]&&S.cards[id]).sort((a,b)=>S.miss[b].n-S.miss[a].n||S.miss[b].d-S.miss[a].d);
@@ -460,15 +460,18 @@ function vHome(){
   const l=S.log[t]||{n:0,r:0};
   const h=new Date().getHours(),hi=h<12?'Günaydın':h<18?'İyi günler':'İyi akşamlar';
   const revDone=due===0&&c.total>0,newDone=left===0||remain===0;
-  const nxt=nextNew(1)[0],nm=missIds().length;
+  const nxt=nextNew(1)[0],nm=missIds().length,ev=eveningIds().length,mt=ev-S.tn.ids.filter(id=>B[id]&&S.cards[id]).length;
+  const lastEx=S.exams.length?S.exams[S.exams.length-1].d:0,exDue=c.total>=30&&t-lastEx>=7; // haftada bir sınav adımı
   return `
   <div class="hero"><div class="row"><div class="grow" style="position:relative;z-index:1"><div class="sm" style="opacity:.88">${dayStr(t,{weekday:'long',month:'long'})}</div><h1>${hi} 👋</h1><div class="streak">🔥 ${streak()} günlük seri</div></div><div class="ring" style="--p:${Math.min(100,Math.round(100*nw/goal))}"><b>${nw}</b><span>/ ${goal} yeni</span></div></div></div>
   <div class="card">
     <b>Bugünkü plan</b>
     <div class="step"><div class="num ${revDone?'done':''}">${revDone?'✓':'1'}</div><div class="grow"><b>Tekrarlar</b><div class="mut sm">${due?due+' kelime tekrar bekliyor':c.total?'Bugünlük tekrar kalmadı':'Henüz tekrar yok'}</div></div>${due?'<button class="btn smb" onclick="startReview()">Başla</button>':''}</div>
     <div class="step"><div class="num ${newDone?'done':''}">${newDone?'✓':'2'}</div><div class="grow"><b>Yeni kelimeler</b><div class="mut sm">${remain===0?'Tüm kelimeleri gördün 🎉':`${nw} / ${goal} öğrenildi${nxt?' · '+(nxt.lv==='ME'?'kendi kelimelerin':'seviye '+nxt.lv):''}`}</div></div>${remain?`<button class="btn smb ${left?'':'sec'}" onclick="startNew()">${left?(nw?'Devam':'Başla'):'+10'}</button>`:''}</div>
-    <div class="step"><div class="num">3</div><div class="grow"><b>Akşam tekrarı</b><div class="mut sm">${nw?'Bugünkü '+nw+' kelimeyi uyumadan önce bir daha gör':'Önce bugünün kelimelerini öğren'}</div></div>${nw?'<button class="btn smb sec" onclick="startEvening()">Başla</button>':''}</div>
+    <div class="step"><div class="num">3</div><div class="grow"><b>Akşam tekrarı</b><div class="mut sm">${ev?(nw?'Bugünkü '+nw+' yeni kelime':'')+(nw&&mt?' ve ':'')+(mt?'bugünkü '+mt+' yanlışın':'')+' · uyumadan önce':'Önce bugünün kelimelerini öğren'}</div></div>${ev?'<button class="btn smb sec" onclick="startEvening()">Başla</button>':''}</div>
     ${c.hard?`<div class="step"><div class="num ${S.hd===t?'done':''}">${S.hd===t?'✓':'4'}</div><div class="grow"><b>Zor kelimeler (5 dk)</b><div class="mut sm">${S.hd===t?'Bugünkü yoğun çalışma yapıldı':c.hard+' kelimede zorlanıyorsun'}</div></div><button class="btn smb sec" onclick="startIntense()">${S.hd===t?'Tekrar':'Başla'}</button></div>`:''}
+    ${nm?`<div class="step"><div class="num" style="background:#ef4444">!</div><div class="grow"><b>Yanlışlarım</b><div class="mut sm">${nm} kelime düzeltilmeyi bekliyor</div></div><button class="btn smb sec" onclick="startMiss()">Düzelt</button></div>`:''}
+    ${exDue?`<div class="step"><div class="num" style="background:#0ea5e9">★</div><div class="grow"><b>Haftalık sınav zamanı</b><div class="mut sm">${lastEx?'Son sınavın üzerinden '+(t-lastEx)+' gün geçti':'İlk sınavını olabilirsin'}</div></div><button class="btn smb sec" onclick="startExam()">Başla</button></div>`:''}
   </div>
   ${due>goal*3?'<div class="card sm" style="background:var(--amb2);color:var(--amb)">Biriken tekrarın çok. Bugün yeni kelimeyi boş ver, önce tekrarları bitir — unutmamanın yolu bu.</div>':''}
   <h2>Kısa tekrarlar</h2>
@@ -499,12 +502,29 @@ function vHome(){
   <h2>Durumum</h2>
   <div class="stats"><div class="stat"><b>${c.learning}</b><span>Öğreniyorum</span></div><div class="stat"><b>${c.learned}</b><span>Öğrendim</span></div><div class="stat"><b>${dayAct(l)}</b><span>Bugün yanıtlanan</span></div></div>
   ${levelBars()}
+  <button class="btn ghost wide" onclick="showAuto()">⚙️ Sistem kendiliğinden neler yapıyor?</button>
   <button class="btn ghost wide" onclick="showTips()">💡 Unutmamak için 7 kural</button>`;
 }
 function levelBars(){
   return '<div class="card">'+['ME',...LEVELS].filter(lv=>W.some(w=>w.lv===lv)).map(lv=>{
     const all=W.filter(w=>w.lv===lv),st=all.filter(w=>S.cards[w.id]).length;
     return `<div class="row sm" style="margin:6px 0"><b style="width:${lv==='ME'?48:26}px">${lvName(lv)}</b><div class="bar grow"><i style="width:${100*st/all.length}%;background:${LVC[lv]}"></i></div><span class="mut">${st}/${all.length-st}</span></div>`}).join('')+'</div>';
+}
+function showAuto(){
+  openModal(`<h2 style="margin-top:0">Sistem kendiliğinden neler yapıyor?</h2>
+  <p class="mut sm">Senin bir şey işaretlemene gerek yok; her cevabın aşağıdaki yerlere otomatik işlenir.</p>
+  <ol class="tips">
+  <li><b>Yanlış yaptığın her kelime → Yanlışlarım.</b> Tekrarda, kısa tekrarda, etkinlikte ya da sınavda fark etmez. Aynı kelime <b>en geç yarınki Tekrarlar</b>'a da eklenir ve orada ilk sırada sorulur.</li>
+  <li><b>Tekrar tekrar yanlış → Zorlandıklarım.</b> Bir kelimeyi 2 farklı günde unutur ya da toplam 3 kez yanlış yaparsan zor listesine girer ve günlük plana "Zor kelimeler" adımı gelir.</li>
+  <li><b>İki kelimeyi karıştırırsan → kaydedilir.</b> Yanlış seçtiğin kelime, sonraki sorularda doğrusunun yanında şık olarak çıkar. Aynı ikiliyi 2 kez karıştırınca "Karıştırdığın çiftler"e girer.</li>
+  <li><b>Doğru bilince listeden çıkar.</b> Yanlışlarım'daki kelime "Düzelt"te ilk denemede ya da günlük tekrarda doğru bilinince düşer. Zor kelime 5. basamağa (öğrendim) gelince listeden çıkar.</li>
+  <li><b>Akşam tekrarı kendini hazırlar.</b> O gün öğrendiğin kelimeler ile o günkü yanlışların birlikte sorulur.</li>
+  <li><b>Günlük plan kendini günceller.</b> Bekleyen yanlışın varsa "Yanlışlarım", son sınavın üzerinden 7 gün geçtiyse "Haftalık sınav" adımı plana eklenir.</li>
+  <li><b>Kelimeler sırayla döner.</b> Etkinlikler ve kısa tekrarlar en uzun süredir çıkmayan kelimeleri getirir; zayıf olanlar öne alınır.</li>
+  <li><b>Tekrar günü kendiliğinden ayarlanır.</b> Doğru bildikçe aralık 1, 2, 4, 8, 16, 35, 75, 150 güne çıkar; yanlışta kısalır. Bir kelime günde en fazla bir basamak çıkar ya da iner.</li>
+  </ol>
+  <p class="mut sm">Sayılmayanlar: Konuşmada "Geç", Hafıza kartlarında yanlış açılan kart ve Eller serbest dinleme hata olarak işlenmez.</p>
+  <button class="btn wide" onclick="closeModal()">Tamam</button>`);
 }
 function showTips(){
   openModal(`<h2 style="margin-top:0">Unutmamak için 7 kural</h2>
@@ -672,6 +692,7 @@ function vSet(){
     <label class="btn sec wide" style="margin-top:8px">Yedekten geri yükle<input type="file" accept="application/json,.json" hidden onchange="importData(this.files[0],this)"></label>
     <button class="btn ghost wide" style="color:var(--no)" onclick="resetAll()">Tüm ilerlemeyi sıfırla</button>
   </div>
+  <button class="btn ghost wide" onclick="showAuto()">⚙️ Sistem kendiliğinden neler yapıyor?</button>
   <button class="btn ghost wide" onclick="showTips()">💡 Unutmamak için 7 kural</button>
   <p class="ctr mut sm">Kelime listesi: The Oxford 3000™ (CEFR) · ${W.length} kelime yüklü</p>`;
 }
@@ -760,7 +781,8 @@ function typeFor(id){
   return r<.45?'type':r<.65&&canSpeak?'listen_type':r<.85?'cloze':'mc_tr_en';
 }
 function startReview(){startSession({mode:'review',queue:dueCards().slice(0,50).map(id=>q(typeFor(id),id)),title:'Tekrar'})}
-function startEvening(){const ids=S.tn.ids.filter(id=>B[id]);startSession({mode:'free',queue:shuffle(ids).map(id=>q(Math.random()<.5?'mc_tr_en':'type',id)),title:'Akşam tekrarı'})}
+const eveningIds=()=>[...new Set([...S.tn.ids,...Object.keys(S.miss).filter(id=>S.miss[id].d===today())])].filter(id=>B[id]&&S.cards[id]);
+function startEvening(){const ids=eveningIds();startSession({mode:'free',queue:shuffle(ids).map(id=>q(Math.random()<.5?'mc_tr_en':'type',id)),title:'Akşam tekrarı'})}
 function weakPool(n,f){ // kısa tekrarlar: kelimeler sırayla döner, sıradakiler arasından zayıf olanlar öne alınır
   const ids=Object.keys(S.cards).filter(id=>B[id]&&(!f||f(S.cards[id],id)));
   // 1) en uzun süredir kısa tekrarda çıkmamış 2n kelime  2) bunların içinden zayıflığa göre n tanesi
@@ -920,6 +942,7 @@ function answer(ok){
   ses.conf=null;
   if(!ok&&ses.mode!=='fix')addMiss(w.id);               // her yanlış "Yanlışlarım" listesine girer
   if(ses.mode==='fix'&&first&&!it.re&&ok)delete S.miss[w.id]; // orada ilk denemede doğru bilinen listeden çıkar
+  if(ses.mode==='review'&&first&&!it.re&&ok&&S.miss[w.id]){if(--S.miss[w.id].n<=0)delete S.miss[w.id]} // günlük tekrarda doğru: bir yanlış silinir
   if(first&&!it.re){
     if(ses.mode==='review')grade(w.id,ok);
     if(ses.mode!=='learn')logAdd(ses.mode==='free'?'a':'r');
@@ -953,12 +976,26 @@ function finish(){
   $('#sbody').innerHTML=`<div class="ctr" style="margin-top:36px"><div style="font-size:64px">${!tot?'👍':pct>=80?'🎉':'💪'}</div>${tot?starsHtml(pct):''}<h1>${esc(ses.title)} tamam</h1><p class="mut">${msg0}</p></div>
   <div class="stats"><div class="stat"><b>${ses.seen.size}</b><span>Kelime</span></div><div class="stat"><b>${tot?'%'+pct:'–'}</b><span>Doğruluk</span></div><div class="stat"><b>${min} dk</b><span>Süre</span></div></div>
   ${ses.missed.size?`<div class="card"><b>Zorlandıkların</b>${[...ses.missed].map(id=>`<div class="wrow"><div class="grow"><b>${esc(B[id].head)}</b> <span class="mut sm">${esc(B[id].ok)}</span><div class="mut sm">${esc(B[id].tr)}</div></div>${canSpeak?`<button class="spk" onclick="say('${jq(id)}')">${SPK}</button>`:''}</div>`).join('')}</div>`:''}`;
-  $('#sfoot').innerHTML=(ses.mode==='exam'&&navigator.share?'<button class="btn sec wide" style="margin-bottom:8px" onclick="shareExam()">Sonucu paylaş</button>':'')+(more?'<button class="btn wide" onclick="endSession();startReview()">Tekrarlara devam et</button>':'')+`<button class="btn ${more?'ghost':''} wide" onclick="endSession()">Bitir</button>`;
+  $('#sfoot').innerHTML=(ses.mode!=='fix'&&ses.missed.size&&missIds().length?'<button class="btn sec wide" style="margin-bottom:8px" onclick="endSession();startMiss()">❌ Yanlışlarını şimdi düzelt ('+missIds().length+')</button>':'')+(ses.mode==='exam'&&navigator.share?'<button class="btn sec wide" style="margin-bottom:8px" onclick="shareExam()">Sonucu paylaş</button>':'')+(more?'<button class="btn wide" onclick="endSession();startReview()">Tekrarlara devam et</button>':'')+`<button class="btn ${more?'ghost':''} wide" onclick="endSession()">Bitir</button>`;
 }
 
 /* ---------- etkinlikler ---------- */
 let act=null;
-function mark(id,ok){const c=S.cards[id];if(!c)return;c.s++;if(ok)c.c++;else c.lw=today();logAdd('a');logAdd(ok?'ok':'no');if(!ok)addMiss(id);if(act){act.combo=ok?(act.combo||0)+1:0;setCombo(act.combo)}save()}
+function mark(id,ok,other){ // etkinliklerde verilen her cevap buradan geçer
+  const c=S.cards[id];if(!c)return;
+  c.s++;
+  if(ok)c.c++;
+  else{
+    c.lw=today();addMiss(id);                                               // -> Yanlışlarım
+    if(c.lq!==today()){c.l++;c.b=Math.max(1,c.b-1);c.lq=today()}            // günde bir kez "unutuldu" sayılır (-> birikince Zorlandıklarım)
+    c.d=c.t===today()?today()+1:Math.min(c.d,today());                      // -> en geç yarınki Tekrarlar
+    if(other&&other!==id&&B[other]){c.cf=c.cf||{};c.cf[other]=(c.cf[other]||0)+1} // -> Karıştırdığın çiftler
+    if(act)act.missN=(act.missN||0)+1;
+  }
+  logAdd('a');logAdd(ok?'ok':'no');
+  if(act){act.combo=ok?(act.combo||0)+1:0;setCombo(act.combo)}
+  save();
+}
 function pickIds(n,f){ // öğrenilen kelimeler sırayla döner: en uzun süredir hiçbir etkinlikte çıkmayan önce gelir
   const ids=Object.keys(S.cards).filter(id=>B[id]&&(!f||f(B[id]))).map(id=>[id,(S.cards[id].u||0)+Math.random()*.9]).sort((a,b)=>a[1]-b[1]).map(x=>x[0]);
   const out=[],h=new Set(),t=new Set();
@@ -985,7 +1022,7 @@ function actDone(title,emoji,stats,note,again){
   clearInterval(act.tick);clearTimeout(act.to);if(act.wl){try{act.wl.release()}catch(e){}act.wl=null}save();$('#sbar').style.background='';actBar(1,1,'');if(emoji==='🎉'||emoji==='🏆')confetti();
   const b=$('#sbody');b.ontouchstart=b.ontouchend=null;
   b.innerHTML=`<div class="ctr" style="margin-top:36px"><div style="font-size:64px">${emoji}</div><h1>${title}</h1><p class="mut">${note||''}</p></div><div class="stats" style="grid-template-columns:repeat(${stats.length},1fr)">${stats.map(([v,l])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div>`;
-  $('#sfoot').innerHTML=`<button class="btn wide" onclick="${again}()">Tekrar oyna</button><button class="btn ghost wide" onclick="endAct()">Bitir</button>`;
+  $('#sfoot').innerHTML=(act.missN&&missIds().length?`<button class="btn sec wide" style="margin-bottom:8px" onclick="endAct();startMiss()">❌ Yanlışlarını şimdi düzelt (${missIds().length})</button>`:'')+`<button class="btn wide" onclick="${again}()">Tekrar oyna</button><button class="btn ghost wide" onclick="endAct()">Bitir</button>`;
 }
 const need=(ids,n,msg)=>{if(ids.length<n){toast(msg||'Bu etkinlik için biraz daha kelime öğrenmelisin');return true}return false};
 
@@ -1012,7 +1049,7 @@ function tapMatch(id,side){
       const sec=Math.max(1,Math.round((Date.now()-a.t0)/1000));S.best=S.best||{};const rec=!S.best.match||sec<S.best.match;if(rec)S.best.match=sec;
       actDone('Eşleştirme tamam',a.err?'💪':'🎉',[[sec+' sn','Süre'],[a.err,'Hata'],[S.best.match+' sn','En iyi süren']],rec?'Yeni rekor!':'','startMatch');
     }
-  }else{a.err++;mark(a.sel,false);const bad={L:a.sel,R:id};a.sel=null;drawMatch(bad);a.to=setTimeout(()=>{if(act===a)drawMatch()},600)}
+  }else{a.err++;mark(a.sel,false,id);const bad={L:a.sel,R:id};a.sel=null;drawMatch(bad);a.to=setTimeout(()=>{if(act===a)drawMatch()},600)}
 }
 
 /* 2. Cümle kurma */
@@ -1096,10 +1133,10 @@ function speedId(last){ // öğrenilen tüm kelimeler karıştırılır; hepsi b
 function nextSpeed(){
   const a=act,id=pickIds(1,w=>w.id!==a.last)[0]||a.last,w=B[id];a.cur=id;a.last=id;a.locked=false;
   $('#sbody').innerHTML=`<div class="row" style="margin-top:6px"><div class="qlabel">Türkçesi hangisi?</div><span class="tag scoretag">⭐ ${a.score} doğru</span></div><div class="word">${esc(w.head)}</div><div class="okn">${esc(w.ok)}</div>
-  <div class="opts">${shuffle([w,...distract(w)]).map(o=>`<button class="opt" data-ok="${o.id===w.id?1:0}" onclick="tapSpeed(this)">${esc(o.tr)}</button>`).join('')}</div>`;
+  <div class="opts">${shuffle([w,...distract(w)]).map(o=>`<button class="opt" data-ok="${o.id===w.id?1:0}" data-id="${esc(o.id)}" onclick="tapSpeed(this)">${esc(o.tr)}</button>`).join('')}</div>`;
 }
 function tapSpeed(btn){
-  const a=act;if(a.locked)return;a.locked=true;const ok=btn.dataset.ok==='1';mark(a.cur,ok);
+  const a=act;if(a.locked)return;a.locked=true;const ok=btn.dataset.ok==='1';mark(a.cur,ok,ok?null:btn.dataset.id);
   if(ok){a.score++;nextSpeed();return}
   a.miss++;btn.classList.add('no');document.querySelectorAll('#sbody .opt').forEach(b=>{if(b.dataset.ok==='1')b.classList.add('ok')});
   a.to=setTimeout(()=>{if(act===a&&Date.now()<a.end)nextSpeed()},800);
@@ -1117,7 +1154,7 @@ function startTF(){
 function nextTF(){
   const a=act;if(a.i>=a.ids.length)return actDone('Tur tamam',a.ok>=a.ids.length*.8?'🎉':'💪',[[a.ok+' / '+a.ids.length,'Doğru karar']],'','startTF');
   const w=B[a.ids[a.i]];a.truth=Math.random()<.5;a.locked=false;
-  const o=a.truth?w:(cfs(w)[0]||distract(w)[0]||w);if(o===w)a.truth=true;a.shown=o.tr;
+  const o=a.truth?w:(cfs(w)[0]||distract(w)[0]||w);if(o===w)a.truth=true;a.shown=o.tr;a.oid=o.id;
   actBar(a.i,a.ids.length);
   const b=$('#sbody');
   b.innerHTML=`<div class="qlabel">Bu anlam doğru mu?</div><div class="card ctr tfcard" style="margin-top:22px;padding:30px 16px"><div class="word" style="margin:0">${esc(w.head)}</div><div class="okn">${esc(w.ok)}</div><div class="mut" style="margin:14px 0 4px">anlamı</div><div class="mean" style="margin:0">${esc(a.shown)}</div></div><div class="ctr mut sm">Sola kaydır: yanlış · Sağa kaydır: doğru</div>`;
@@ -1127,7 +1164,7 @@ function nextTF(){
   say(w.id);
 }
 function ansTF(v){
-  const a=act;if(!a||a.k!=='tf'||a.locked)return;a.locked=true;const w=B[a.ids[a.i]],ok=v===a.truth;mark(w.id,ok);
+  const a=act;if(!a||a.k!=='tf'||a.locked)return;a.locked=true;const w=B[a.ids[a.i]],ok=v===a.truth;mark(w.id,ok,!ok&&!a.truth?a.oid:null);
   if(ok){a.ok++;$('#sfoot').innerHTML=fbHtml(true,w.head,w.tr);a.to=setTimeout(()=>{if(act===a)actNext(nextTF)},650)}
   else $('#sfoot').innerHTML=fbHtml(false,w.head+' = '+w.tr,a.truth?'Gösterilen anlam doğruydu.':'Gösterilen anlam yanlıştı.')+'<button class="btn wide" onclick="actNext(nextTF)">Devam</button>';
 }
@@ -1200,12 +1237,12 @@ function nextPic(){
   const ds=[],seen=new Set([w.head]);
   for(const x of shuffle(lp.length>=8?lp:pool)){if(seen.has(x.head))continue;seen.add(x.head);ds.push(x);if(ds.length===3)break}
   $('#sbody').innerHTML=`<div class="qlabel">Bu resim hangi kelime?</div><div class="rc-q"><div class="bigpic">${w.ic}</div></div>
-  <div class="opts">${shuffle([w,...ds]).map(o=>`<button class="opt" data-ok="${o.id===w.id?1:0}" onclick="tapPic(this)">${esc(o.head)}</button>`).join('')}</div>`;
+  <div class="opts">${shuffle([w,...ds]).map(o=>`<button class="opt" data-ok="${o.id===w.id?1:0}" data-id="${esc(o.id)}" onclick="tapPic(this)">${esc(o.head)}</button>`).join('')}</div>`;
   $('#sfoot').innerHTML='';
 }
 function tapPic(btn){
   const a=act;if(!a||a.k!=='pic'||a.locked)return;a.locked=true;
-  const w=B[a.ids[a.i]],ok=btn.dataset.ok==='1';mark(w.id,ok);if(ok)a.ok++;
+  const w=B[a.ids[a.i]],ok=btn.dataset.ok==='1';mark(w.id,ok,ok?null:btn.dataset.id);if(ok)a.ok++;
   document.querySelectorAll('#sbody .opt').forEach(b=>{if(b.dataset.ok==='1')b.classList.add('ok')});if(!ok)btn.classList.add('no');
   say(w.id);
   $('#sfoot').innerHTML=fbHtml(ok,w.head+(w.ok?' · '+w.ok:''),w.tr)+'<button class="btn wide" onclick="actNext(nextPic)">Devam</button>';
