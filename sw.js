@@ -1,5 +1,5 @@
 // Kelime Defterim — çevrimdışı önbellek + günlük hatırlatma
-const CACHE = 'kelime-v2';
+const CACHE = 'kelime-v3';
 const FILES = ['./', 'index.html', 'words.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
