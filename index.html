@@ -145,6 +145,11 @@ nav{z-index:5;isolation:isolate}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
 @keyframes fall{to{transform:translateY(110vh) rotate(720deg);opacity:.9}}
 @media(prefers-reduced-motion:reduce){.opt.ok,.opt.no,.fb,.spk.big.rec,.cf{animation:none}}
+.back{display:inline-flex;align-items:center;gap:6px;min-height:48px;padding:0 20px 0 12px;margin:0 0 8px;border-radius:24px;background:var(--pri2);color:var(--pri);font-size:17px;font-weight:700}
+.back svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.back:active{transform:scale(.96)}
+.x{width:46px;height:46px;font-size:30px;border-radius:50%;background:var(--card);color:var(--tx);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.x:active{transform:scale(.92)}
 </style>
 </head>
 <body>
@@ -409,7 +414,7 @@ function showTips(){
 /* ---------- Zorlandıklarım ---------- */
 function vHard(){
   const ids=hardIds(),pairs=confPairs().slice(0,8);
-  return `<button class="btn ghost smb" style="padding-left:0" onclick="tab='home';render()">‹ Bugün</button>
+  return `<button class="back" onclick="tab='home';render()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Bugün</button>
   <h1>Zorlandıklarım</h1><div class="mut sm">2 kez unuttuğun, 3 kez yanlış yaptığın ya da yıldızladığın kelimeler burada toplanır. Kelimeyi öğrenince (5. basamak) listeden çıkar.</div>
   ${ids.length?`<div class="grid2" style="margin-top:14px"><button class="btn" onclick="startIntense()">Yoğun çalış</button><button class="btn sec" onclick="startHard()">Hızlı tur</button></div>
   <div class="mut sm" style="margin-top:6px">Yoğun çalışma: her kelimeyi dinleme, anlam, cümle ve yazma ile dört kez sorar.</div>`:''}
