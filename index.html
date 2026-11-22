@@ -568,9 +568,13 @@ function typeFor(id){
 }
 function startReview(){startSession({mode:'review',queue:dueCards().slice(0,50).map(id=>q(typeFor(id),id)),title:'Tekrar'})}
 function startEvening(){const ids=S.tn.ids.filter(id=>B[id]);startSession({mode:'free',queue:shuffle(ids).map(id=>q(Math.random()<.5?'mc_tr_en':'type',id)),title:'Akşam tekrarı'})}
-function weakPool(n,f){
-  const ids=Object.keys(S.cards).filter(id=>B[id]&&(!f||f(S.cards[id])));
-  return ids.map(id=>{const c=S.cards[id];return[id,Math.random()*(1+c.l)*(10-c.b)]}).sort((a,b)=>b[1]-a[1]).slice(0,n).map(x=>x[0]);
+function weakPool(n,f){ // kısa tekrarlar: kelimeler sırayla döner, sıradakiler arasından zayıf olanlar öne alınır
+  const ids=Object.keys(S.cards).filter(id=>B[id]&&(!f||f(S.cards[id],id)));
+  // 1) en uzun süredir kısa tekrarda çıkmamış 2n kelime  2) bunların içinden zayıflığa göre n tanesi
+  const fresh=ids.map(id=>[id,(S.cards[id].q||0)+Math.random()*.9]).sort((a,b)=>a[1]-b[1]).slice(0,n*2).map(x=>x[0]);
+  const out=fresh.map(id=>{const c=S.cards[id];return[id,Math.random()*(1+c.l+errs(c)/2)*(10-c.b)]}).sort((a,b)=>b[1]-a[1]).slice(0,n).map(x=>x[0]);
+  S.qc=(S.qc||0)+1;out.forEach(id=>{S.cards[id].q=S.qc});
+  return shuffle(out);
 }
 function startQuick(){startSession({mode:'quick',queue:weakPool(10).map(id=>q(typeFor(id),id)),title:'2 dakikalık tur'})}
 function startHard(){startSession({mode:'quick',queue:weakPool(15,isHard).map(id=>q(Math.random()<.5?'mc_tr_en':'type',id)),title:'Zor kelimeler'})}
@@ -602,7 +606,7 @@ function startExam(){
 function examText(e){return 'Kelime Defterim – haftalık sınav ('+dayStr(e.d)+'): '+e.ok+' / '+e.n+' (%'+Math.round(100*e.ok/e.n)+')'+(e.miss.length?'\nZorlandıklarım: '+e.miss.join(', '):'')}
 function shareExam(){const e=S.exams[S.exams.length-1];if(e&&navigator.share)navigator.share({text:examText(e)}).catch(()=>{})}
 function startSpeak(){startSession({mode:'free',queue:weakPool(10).map(id=>q('speak',id)),title:'Konuşma',msg:'Her gün birkaç kelimeyi sesli söylemek telaffuzunu hızla düzeltir.'})}
-function startCloze(){startSession({mode:'quick',queue:weakPool(40).filter(id=>clozeM(B[id])).slice(0,10).map(id=>q('cloze',id)),title:'Cümle tamamlama'})}
+function startCloze(){startSession({mode:'quick',queue:weakPool(10,(c,id)=>clozeM(B[id])).map(id=>q('cloze',id)),title:'Cümle tamamlama'})}
 function startWrite(){startSession({mode:'quick',queue:weakPool(10).map(id=>q('type',id)),title:'Yazma'})}
 
 function distract(w){
