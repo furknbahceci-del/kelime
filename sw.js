@@ -1,5 +1,5 @@
 // Kelime Defterim — çevrimdışı önbellek + günlük hatırlatma
-const CACHE = 'kelime-v11';
+const CACHE = 'kelime-v12';
 const FILES = ['./', 'index.html', 'words.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -12,12 +12,18 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.origin !== location.origin) return;
-  e.respondWith(
-    fetch(e.request).then(r => {
-      if (r.ok) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(e.request, cp)); }
-      return r;
-    }).catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || caches.match('index.html')))
-  );
+  const net = fetch(e.request).then(r => {
+    if (r.ok) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(e.request, cp)); }
+    return r;
+  });
+  e.waitUntil(net.catch(() => {}));
+  e.respondWith((async () => {
+    const cached = await caches.match(e.request, { ignoreSearch: true });
+    if (!cached) return net.catch(() => caches.match('index.html'));
+    // Önce ağ (güncellemeler gelsin); ağ yoksa ya da 2,5 saniyede yanıt vermezse önbellek
+    const r = await Promise.race([net.catch(() => null), new Promise(res => setTimeout(() => res(null), 2500))]);
+    return r || cached;
+  })());
 });
 
 const dayNum = () => { const d = new Date(); return Math.floor((d.getTime() - d.getTimezoneOffset() * 6e4) / 864e5); };

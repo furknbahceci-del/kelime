@@ -156,29 +156,41 @@ function fixToday(){ // bugün öğrenilip aynı gün ileri basamağa atlamış 
   const t=today();for(const id in S.cards){const c=S.cards[id];if(c.t===t&&c.b>1){c.b=1;c.d=t+1}}
 }
 function load(){
-  let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-  s=s||{};s.cards=s.cards||{};s.log=s.log||{};
+  let s=null;const raw=localStorage.getItem(KEY);
+  try{s=JSON.parse(raw)}catch(e){try{localStorage.setItem(KEY+'-bad',raw)}catch(_){}}
+  const isObj=x=>x&&typeof x==='object'&&!Array.isArray(x);
+  if(!isObj(s))s={};if(!isObj(s.cards))s.cards={};if(!isObj(s.log))s.log={};
+  for(const d in s.log){const l=s.log[d];if(!isObj(l)){delete s.log[d];continue}for(const k of ['n','r','ok','no','a'])l[k]=+l[k]||0}
   s.set=Object.assign({daily:20,accent:'en-US',rate:0.9,remH:20,remM:0},s.set||{});
-  s.tn=s.tn||{day:today(),ids:[]};s.custom=s.custom||[];s.exams=s.exams||[];
+  if(!isObj(s.tn)||!Array.isArray(s.tn.ids))s.tn={day:today(),ids:[]};if(!Array.isArray(s.custom))s.custom=[];if(!Array.isArray(s.exams))s.exams=[];
   if(!s.m1){if(s.best)delete s.best.speed;s.m1=1} // eski hızlı tur rekoru aynı kelimelerle yapılmıştı: bir kez sıfırla
   return s;
 }
 function save(){
   if(S.tn.day!==today())S.tn={day:today(),ids:[]};
-  localStorage.setItem(KEY,JSON.stringify(S));
+  S.rev=Date.now();
+  try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Kaydedilemedi: telefonda yer kalmamış olabilir')}
   pushState();
+}
+function refreshIfStale(){ // uygulama başka bir pencerede (sekme / kurulu uygulama) güncellendiyse yeni hâlini oku
+  if(ses||act)return;
+  try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.rev&&d.rev>(S.rev||0)){S=load();syncCustom();fixToday()}}catch(e){}
 }
 function pushState(){ // servis çalışanının hatırlatma için okuyacağı özet
   if(!('caches' in window))return;
-  const t=today(),l=S.log[t];
-  const body=JSON.stringify({lastDay:l&&(l.n+l.r)>0?t:lastActiveDay(),remH:S.set.remH,remM:S.set.remM,due:dueCards(t+1).length});
-  caches.open('kelime-state').then(c=>c.put('state.json',new Response(body))).catch(()=>{});
+  const t=today();
+  const st={lastDay:dayAct(S.log[t])>0?t:lastActiveDay(),remH:S.set.remH,remM:S.set.remM,due:dueCards(t+1).length};
+  caches.open('kelime-state').then(async c=>{
+    try{const r=await c.match('state.json');if(r){const o=await r.json();if(o&&o.notified)st.notified=o.notified}}catch(e){}
+    return c.put('state.json',new Response(JSON.stringify(st)));
+  }).catch(()=>{});
 }
-function lastActiveDay(){let m=0;for(const d in S.log){const l=S.log[d];if(l.n+l.r>0&&+d>m)m=+d}return m}
-function logAdd(k){const d=today();const l=S.log[d]=S.log[d]||{n:0,r:0,ok:0,no:0};l[k]++}
+const dayAct=l=>l?(l.n||0)+(l.r||0)+(l.a||0):0; // o gün yapılan her şey: yeni kelime + tekrar + etkinlik
+function lastActiveDay(){let m=0;for(const d in S.log){if(dayAct(S.log[d])>0&&+d>m)m=+d}return m}
+function logAdd(k){const d=today();const l=S.log[d]=S.log[d]||{n:0,r:0,ok:0,no:0,a:0};l[k]=(l[k]||0)+1}
 const dueCards=(t=today())=>Object.keys(S.cards).filter(id=>B[id]&&S.cards[id].d<=t).sort((a,b)=>S.cards[a].d-S.cards[b].d);
 const errs=c=>c.s-c.c;
-const isHard=c=>c.f||c.l>=2||errs(c)>=3;
+const isHard=c=>c.f||(c.b<LEARNED&&(c.l>=2||errs(c)>=3));
 const hardIds=()=>Object.keys(S.cards).filter(id=>B[id]&&isHard(S.cards[id])).sort((a,b)=>errs(S.cards[b])-errs(S.cards[a]));
 const SEP='\u0001';
 function confPairs(){
@@ -190,10 +202,11 @@ function cfs(w){ // bu kelimeyle karıştırılanlar (iki yönlü)
   const m={},c=S.cards[w.id];
   if(c&&c.cf)for(const o in c.cf)m[o]=c.cf[o];
   for(const id in S.cards){const cf=S.cards[id].cf;if(cf&&cf[w.id])m[id]=(m[id]||0)+cf[w.id]}
-  return Object.keys(m).sort((a,b)=>m[b]-m[a]).map(id=>B[id]).filter(x=>x&&x.id!==w.id&&x.head!==w.head&&x.tr!==w.tr).slice(0,2);
+  const tm=new Set(w.tr.split(/,\s*/));
+  return Object.keys(m).sort((a,b)=>m[b]-m[a]).map(id=>B[id]).filter(x=>x&&x.id!==w.id&&x.head!==w.head&&!x.tr.split(/,\s*/).some(t=>tm.has(t))).slice(0,2);
 }
 function counts(){let learning=0,learned=0,hard=0;for(const id in S.cards){if(!B[id])continue;const c=S.cards[id];c.b>=LEARNED?learned++:learning++;if(isHard(c))hard++}return{learning,learned,hard,total:learning+learned}}
-function streak(){let t=today(),n=0;const act=d=>S.log[d]&&S.log[d].n+S.log[d].r>0;if(!act(t))t--;while(act(t)){n++;t--}return n}
+function streak(){let t=today(),n=0;const act=d=>dayAct(S.log[d])>0;if(!act(t))t--;while(act(t)){n++;t--}return n}
 function nextNew(n){const out=[];for(const w of W){if(!S.cards[w.id]){out.push(w);if(out.length>=n)break}}return out}
 function grade(id,ok){
   const c=S.cards[id];
@@ -201,7 +214,7 @@ function grade(id,ok){
     if(c.t===today()||c.g===today())c.d=Math.max(c.d,today()+1); // bugün öğrenildi ya da bugün zaten değerlendirildi: basamak atlamaz
     else{c.b=Math.min(8,c.b+1);c.d=today()+IV[c.b]+(c.b>=5?Math.floor(Math.random()*3):0)}
   }
-  else{c.l++;c.b=Math.max(1,Math.floor(c.b/2));c.d=today()+1}
+  else{if(c.lq!==today()){c.l++;c.b=Math.max(1,Math.floor(c.b/2));c.lq=today()}c.d=today()+1}
   c.g=today();
 }
 
@@ -233,7 +246,7 @@ const sayEx=id=>speak(B[id].ex);
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 const MIC='<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
 let rec=null;
-function stopRec(){if(rec){try{rec.onend=null;rec.abort()}catch(e){}rec=null}const b=$('#micb');if(b)b.classList.remove('rec')}
+function stopRec(){if(rec){try{rec.onend=rec.onresult=rec.onerror=null;rec.abort()}catch(e){}rec=null}const b=$('#micb');if(b)b.classList.remove('rec')}
 function listen(){
   if(!ses||ses.answered||!SR)return;
   if(canSpeak)speechSynthesis.cancel();
@@ -242,7 +255,7 @@ function listen(){
   rec=new SR();rec.lang=S.set.accent;rec.maxAlternatives=5;rec.interimResults=false;
   rec.onresult=e=>{
     const alts=[...e.results[0]].map(a=>norm(a.transcript)),acc=w.head.split(/,\s*/).map(norm);
-    if(alts.some(a=>acc.some(x=>(' '+a+' ').includes(' '+x+' '))))answer(true);
+    if(alts.some(a=>acc.some(x=>(' '+a+' ').includes(' '+x+' ')||sq(a)===sq(x))))answer(true);
     else msg='Şunu duydum: "'+alts[0]+'". Önce dinle, sonra tekrar dene.';
   };
   rec.onerror=e=>{msg={'not-allowed':'Mikrofon izni gerekli. Tarayıcı sorduğunda izin ver.','service-not-allowed':'Mikrofon izni gerekli.','no-speech':'Ses duyulmadı. Tekrar dene.','network':'Konuşma tanıma için internet gerekli.','audio-capture':'Mikrofon bulunamadı.'}[e.error]||'Anlaşılamadı. Tekrar dene.'};
@@ -285,7 +298,7 @@ function vHome(){
     <button class="tile" ${c.total<4?'disabled':''} onclick="startWrite()"><b>✍️ Yazma</b><span>Türkçeden İngilizceye</span></button>
     <button class="tile" ${c.total<1||!SR?'disabled':''} onclick="startSpeak()"><b>🎤 Konuşma</b><span>${SR?'Kelimeyi sesli söyle':'Bu tarayıcıda desteklenmiyor'}</span></button>
     <button class="tile" ${c.total<4?'disabled':''} onclick="startCloze()"><b>🧩 Cümle tamamlama</b><span>Boşluğa doğru kelimeyi koy</span></button>
-    <button class="tile" style="grid-column:1/-1" ${c.total<10?'disabled':''} onclick="startExam()"><b>📝 Haftalık sınav</b><span>${S.exams.length?'Son sınav: '+S.exams[S.exams.length-1].ok+' / '+S.exams[S.exams.length-1].n+' · '+dayStr(S.exams[S.exams.length-1].d):'Bu hafta öğrendiklerinden 30 soru'}</span></button>
+    <button class="tile" style="grid-column:1/-1" ${c.total<10?'disabled':''} onclick="startExam()"><b>📝 Haftalık sınav</b><span>${S.exams.length?'Son sınav: '+S.exams[S.exams.length-1].ok+' / '+S.exams[S.exams.length-1].n+' · '+dayStr(S.exams[S.exams.length-1].d):'Bu hafta öğrendiklerinden en fazla 30 soru'}</span></button>
   </div>
   <h2>Etkinlikler</h2>
   <div class="grid2">
@@ -299,7 +312,7 @@ function vHome(){
   </div>
   ${c.total<6?'<div class="mut sm" style="margin-top:6px">Etkinlikler en az 6 kelime öğrenince açılır.</div>':''}
   <h2>Durumum</h2>
-  <div class="stats"><div class="stat"><b>${c.learning}</b><span>Öğreniyorum</span></div><div class="stat"><b>${c.learned}</b><span>Öğrendim</span></div><div class="stat"><b>${l.n+l.r}</b><span>Bugün çalışılan</span></div></div>
+  <div class="stats"><div class="stat"><b>${c.learning}</b><span>Öğreniyorum</span></div><div class="stat"><b>${c.learned}</b><span>Öğrendim</span></div><div class="stat"><b>${dayAct(l)}</b><span>Bugün yanıtlanan</span></div></div>
   ${levelBars()}
   <button class="btn ghost wide" onclick="showTips()">💡 Unutmamak için 7 kural</button>`;
 }
@@ -325,7 +338,7 @@ function showTips(){
 function vHard(){
   const ids=hardIds(),pairs=confPairs().slice(0,8);
   return `<button class="btn ghost smb" style="padding-left:0" onclick="tab='home';render()">‹ Bugün</button>
-  <h1>Zorlandıklarım</h1><div class="mut sm">2 kez unuttuğun, 3 kez yanlış yaptığın ya da yıldızladığın kelimeler burada toplanır.</div>
+  <h1>Zorlandıklarım</h1><div class="mut sm">2 kez unuttuğun, 3 kez yanlış yaptığın ya da yıldızladığın kelimeler burada toplanır. Kelimeyi öğrenince (5. basamak) listeden çıkar.</div>
   ${ids.length?`<div class="grid2" style="margin-top:14px"><button class="btn" onclick="startIntense()">Yoğun çalış</button><button class="btn sec" onclick="startHard()">Hızlı tur</button></div>
   <div class="mut sm" style="margin-top:6px">Yoğun çalışma: her kelimeyi dinleme, anlam, cümle ve yazma ile dört kez sorar.</div>`:''}
   ${pairs.length?`<div class="card"><div class="row"><b class="grow">Karıştırdığın çiftler</b><button class="btn smb sec" onclick="startPairs()">Çalış</button></div>
@@ -345,20 +358,21 @@ function wordList(){
   else if(wfilter==='today')a=a.filter(w=>S.tn.ids.includes(w.id));
   else if(wfilter==='new')a=a.filter(w=>!S.cards[w.id]);
   else if(wfilter==='mine')a=a.filter(w=>w.lv==='ME');
-  if(q)a=a.filter(w=>w.head.toLowerCase().includes(q)||w.tr.toLocaleLowerCase('tr').includes(q));
+  const qe=wquery.trim().toLowerCase();
+  if(q)a=a.filter(w=>{const h=w.head.toLowerCase();return h.includes(qe)||h.includes(q)||w.tr.toLocaleLowerCase('tr').includes(q)});
   if(wfilter!=='new'&&wfilter!=='all'&&wfilter!=='mine')a=a.slice().sort((x,y)=>S.cards[x.id].d-S.cards[y.id].d);
   return a;
 }
 function vWords(){
   const c=counts(),tabs=[['learning','Öğreniyorum '+c.learning],['learned','Öğrendim '+c.learned],['hard','Zor '+c.hard],['today','Bugün '+S.tn.ids.length],['mine','Benim '+S.custom.length],['new','Sırada'],['all','Tümü']];
   return `<div class="row"><h1 class="grow">Kelimeler</h1><button class="btn smb" onclick="showAdd()">+ Kelime ekle</button></div>
-  <input class="search" placeholder="Kelime ya da anlam ara…" value="${esc(wquery)}" oninput="wquery=this.value;wlimit=60;$('#wl').innerHTML=wRows()">
+  <input class="search" autocapitalize="off" autocomplete="off" placeholder="Kelime ya da anlam ara…" value="${esc(wquery)}" oninput="wquery=this.value;wlimit=60;$('#wl').innerHTML=wRows()">
   <div class="seg">${tabs.map(([k,t])=>`<button class="${wfilter===k?'on':''}" onclick="wfilter='${k}';wlimit=60;render()">${t}</button>`).join('')}</div>
   <div class="card" id="wl">${wRows()}</div>`;
 }
 function wRows(){
   const a=wordList();
-  if(!a.length)return'<div class="mut ctr" style="padding:18px 0">'+({learning:'Henüz öğrenmeye başladığın kelime yok. "Bugün" sekmesinden başla.',learned:'Bir kelime, aralıklı tekrarlarda art arda doğru bilindikçe (yaklaşık 2 hafta) buraya geçer.',hard:'Zor kelimen yok. 2 kez yanlış yaptığın ya da yıldızladığın kelimeler burada toplanır.',today:'Bugün henüz yeni kelime öğrenmedin.',mine:'Dersinde öğrendiğin kelimeleri "+ Kelime ekle" ile buraya ekle; yeni kelimelerde ilk onlar gelir.'}[wfilter]||'Sonuç yok.')+'</div>';
+  if(!a.length)return'<div class="mut ctr" style="padding:18px 0">'+({learning:'Henüz öğrenmeye başladığın kelime yok. "Bugün" sekmesinden başla.',learned:'Bir kelime, aralıklı tekrarlarda art arda doğru bilindikçe (yaklaşık 2 hafta) buraya geçer.',hard:'Zor kelimen yok. 2 kez unuttuğun, 3 kez yanlış yaptığın ya da yıldızladığın kelimeler burada toplanır.',today:'Bugün henüz yeni kelime öğrenmedin.',mine:'Dersinde öğrendiğin kelimeleri "+ Kelime ekle" ile buraya ekle; yeni kelimelerde ilk onlar gelir.'}[wfilter]||'Sonuç yok.')+'</div>';
   return a.slice(0,wlimit).map(w=>{const c=S.cards[w.id];
     return `<div class="wrow"><button class="grow" style="text-align:left" onclick="showWord('${jq(w.id)}')"><b>${esc(w.head)}</b> <span class="mut sm">${esc(w.ok)}</span><div class="mut sm">${esc(w.tr)}</div>${c?`<div class="dots">${[1,2,3,4,5,6,7,8].map(i=>`<i class="${i<=c.b?'f':''}"></i>`).join('')}</div>`:''}</button>${canSpeak?`<button class="spk" onclick="say('${jq(w.id)}')">${SPK}</button>`:''}</div>`}).join('')
     +(a.length>wlimit?`<button class="btn ghost wide" onclick="wlimit+=100;$('#wl').innerHTML=wRows()">Daha fazla göster (${a.length-wlimit})</button>`:'');
@@ -408,12 +422,12 @@ function delCustom(id){
 }
 function toggleHard(id){S.cards[id].f=!S.cards[id].f;save();closeModal();render()}
 function openModal(h){$('#sheet').innerHTML=h;$('#modal').classList.remove('hidden')}
-function closeModal(){$('#modal').classList.add('hidden');if(tab==='hard'&&!ses)render();if(tab==='words'&&$('#wl'))$('#wl').innerHTML=wRows()}
+function closeModal(){$('#modal').classList.add('hidden');if(tab==='hard'&&!ses){const y=window.scrollY;render();window.scrollTo(0,y)}if(tab==='words'&&$('#wl'))$('#wl').innerHTML=wRows()}
 
 /* ---------- İlerleme ---------- */
 function vStats(){
   const t=today(),c=counts();let ok=0,no=0,days=0;
-  for(const d in S.log){ok+=S.log[d].ok;no+=S.log[d].no;if(S.log[d].n+S.log[d].r>0)days++}
+  for(const d in S.log){ok+=S.log[d].ok||0;no+=S.log[d].no||0;if(dayAct(S.log[d])>0)days++}
   const last=[];for(let i=13;i>=0;i--)last.push([t-i,S.log[t-i]||{n:0,r:0}]);
   const mx=Math.max(10,...last.map(([,l])=>l.n+l.r));
   const fc=[];for(let i=0;i<=7;i++)fc.push([t+i,Object.keys(S.cards).filter(id=>B[id]&&(i?S.cards[id].d===t+i:S.cards[id].d<=t)).length]);
@@ -421,7 +435,7 @@ function vStats(){
   const fm=Math.max(5,...fc.map(x=>x[1]));
   const boxes=[1,2,3,4,5,6,7,8].map(b=>Object.keys(S.cards).filter(id=>B[id]&&S.cards[id].b===b).length),bm=Math.max(1,...boxes);
   return `<h1>İlerleme</h1>
-  <div class="stats"><div class="stat"><b>🔥 ${streak()}</b><span>Gün serisi</span></div><div class="stat"><b>${c.total}</b><span>Görülen kelime</span></div><div class="stat"><b>${ok+no?Math.round(100*ok/(ok+no)):0}%</b><span>Doğruluk</span></div></div>
+  <div class="stats"><div class="stat"><b>🔥 ${streak()}</b><span>Gün serisi</span></div><div class="stat"><b>${c.total}</b><span>Görülen kelime</span></div><div class="stat"><b>%${ok+no?Math.round(100*ok/(ok+no)):0}</b><span>Doğruluk</span></div></div>
   <div class="stats" style="margin-top:10px"><div class="stat"><b>${c.learning}</b><span>Öğreniyorum</span></div><div class="stat"><b>${c.learned}</b><span>Öğrendim</span></div><div class="stat"><b>${days}</b><span>Çalışılan gün</span></div></div>
   <div class="card"><b>Son 14 gün</b><div class="mut sm"><span style="color:var(--pri)">■</span> yeni &nbsp;<span style="color:var(--ok)">■</span> tekrar</div>
     <div class="chart">${last.map(([d,l])=>`<div><i class="n" style="height:${90*l.n/mx}%"></i><i class="r" style="height:${90*l.r/mx}%"></i><span>${new Date(d*864e5).getUTCDate()}</span></div>`).join('')}</div></div>
@@ -430,7 +444,7 @@ function vStats(){
   <div class="card"><b>Hafıza basamakları</b><div class="mut sm">Yeni kelime 1. basamaktan başlar. Farklı günlerde doğru bildikçe bir basamak çıkar ve yanındaki gün kadar sonra tekrar sorulur; yanlış yapınca geri düşer. 5. basamaktan itibaren "öğrendim" sayılır. Toplam ${c.total} kelime.</div>
     ${boxes.map((n,i)=>`<div class="row sm" style="margin:7px 0"><span style="width:74px">${i+1}. · ${IV[i+1]} gün</span><div class="bar grow"><i style="width:${100*n/bm}%;background:${i+1>=LEARNED?'var(--ok)':'var(--pri)'}"></i></div><span class="mut" style="width:30px;text-align:right">${n}</span></div>`).join('')}</div>
   <div class="card"><div class="row"><b class="grow">Haftalık sınavlar</b><button class="btn smb sec" ${c.total<10?'disabled':''} onclick="startExam()">Sınav ol</button></div>
-    ${S.exams.length?S.exams.slice(-8).reverse().map(e=>`<div class="row sm" style="margin:8px 0"><span style="width:52px">${dayStr(e.d)}</span><div class="bar grow"><i style="width:${100*e.ok/e.n}%;background:${e.ok/e.n>=.8?'var(--ok)':'var(--pri)'}"></i></div><span style="width:74px;text-align:right"><b>${e.ok}/${e.n}</b> · %${Math.round(100*e.ok/e.n)}</span></div>`).join(''):'<div class="mut sm" style="margin-top:6px">Henüz sınav olmadın. Haftada bir kez, o hafta öğrendiklerinden 30 soru.</div>'}</div>
+    ${S.exams.length?S.exams.slice(-8).reverse().map(e=>`<div class="row sm" style="margin:8px 0"><span style="width:52px">${dayStr(e.d)}</span><div class="bar grow"><i style="width:${100*e.ok/e.n}%;background:${e.ok/e.n>=.8?'var(--ok)':'var(--pri)'}"></i></div><span style="width:74px;text-align:right"><b>${e.ok}/${e.n}</b> · %${Math.round(100*e.ok/e.n)}</span></div>`).join(''):'<div class="mut sm" style="margin-top:6px">Henüz sınav olmadın. Haftada bir kez, o hafta öğrendiklerinden en fazla 30 soru.</div>'}</div>
   <h2>Seviye ilerlemesi</h2>${levelBars()}`;
 }
 
@@ -455,7 +469,7 @@ function vSet(){
     <a class="btn wide" style="text-decoration:none" target="_blank" rel="noopener" href="${gcalLink()}">📅 Google Takvim'e günlük ekle</a>
     <button class="btn sec wide" style="margin-top:8px" onclick="dlIcs()">Takvim dosyası indir (.ics)</button>
     <p class="sm mut" style="margin-bottom:6px">Ek olarak uygulama bildirimi: o gün hiç çalışmadıysan hatırlatır. Android bunu her zaman tam saatinde göstermeyebilir.</p>
-    <button class="btn sec wide" onclick="enableNotif()">${np==='granted'?'🔔 Uygulama bildirimi açık — test et':'🔔 Uygulama bildirimini aç'}</button>
+    <button class="btn sec wide" onclick="enableNotif()">${np==='granted'?(s.ps?'🔔 Uygulama bildirimi açık — test et':'🔔 Bildirim izni var — arka plan hatırlatması bu cihazda çalışmıyor'):'🔔 Uygulama bildirimini aç'}</button>
   </div>
   <h2>Telefona kur</h2>
   <div class="card sm">${window.matchMedia('(display-mode: standalone)').matches?'✓ Uygulama olarak kurulu.':'Chrome menüsü (⋮) → <b>Ana ekrana ekle / Uygulamayı yükle</b>. Kurduktan sonra internet olmadan da çalışır.'}${deferred?'<button class="btn wide" style="margin-top:10px" onclick="doInstall()">Şimdi kur</button>':''}</div>
@@ -463,14 +477,14 @@ function vSet(){
   <div class="card">
     <p class="sm mut" style="margin-top:0">İlerlemen yalnızca bu telefonda saklanır. Telefon değiştirmeden ya da tarayıcı verilerini silmeden önce yedek al.</p>
     <button class="btn sec wide" onclick="exportData()">Yedeği indir</button>
-    <label class="btn sec wide" style="margin-top:8px">Yedekten geri yükle<input type="file" accept="application/json,.json" hidden onchange="importData(this.files[0])"></label>
+    <label class="btn sec wide" style="margin-top:8px">Yedekten geri yükle<input type="file" accept="application/json,.json" hidden onchange="importData(this.files[0],this)"></label>
     <button class="btn ghost wide" style="color:var(--no)" onclick="resetAll()">Tüm ilerlemeyi sıfırla</button>
   </div>
   <button class="btn ghost wide" onclick="showTips()">💡 Unutmamak için 7 kural</button>
   <p class="ctr mut sm">Kelime listesi: The Oxford 3000™ (CEFR) · ${W.length} kelime yüklü</p>`;
 }
 function setOpt(k,v){S.set[k]=v;save()}
-function setTime(v){const[a,b]=v.split(':');S.set.remH=+a;S.set.remM=+b;save();render()}
+function setTime(v){if(!/^\d\d:\d\d$/.test(v)){render();return}const[a,b]=v.split(':');S.set.remH=+a;S.set.remM=+b;save();render()}
 function remDates(){const d=new Date();d.setHours(S.set.remH,S.set.remM,0,0);if(d<new Date())d.setDate(d.getDate()+1);
   const f=x=>x.getFullYear()+String(x.getMonth()+1).padStart(2,'0')+String(x.getDate()).padStart(2,'0')+'T'+String(x.getHours()).padStart(2,'0')+String(x.getMinutes()).padStart(2,'0')+'00';
   return[f(d),f(new Date(d.getTime()+15*6e4))]}
@@ -483,14 +497,33 @@ async function enableNotif(){
   const p=await Notification.requestPermission();
   if(p!=='granted'){toast('Bildirim izni verilmedi');render();return}
   const reg=await navigator.serviceWorker.ready;
-  try{if(reg.periodicSync)await reg.periodicSync.register('hatirlat',{minInterval:6*3600*1000})}catch(e){}
-  pushState();
+  let bg=false;try{if(reg.periodicSync){await reg.periodicSync.register('hatirlat',{minInterval:6*3600*1000});bg=true}}catch(e){}
+  S.set.ps=bg;save();
+  if(!bg)toast('Bildirim izni verildi, ama bu cihazda arka plan hatırlatması çalışmıyor. Takvim hatırlatıcısını kullan.');
   reg.showNotification('Kelime Defterim',{body:'Bildirimler açık. Günlük tekrarını unutma!',icon:'icon-192.png',badge:'icon-192.png',tag:'test'});
   render();
 }
 function exportData(){download('kelime-yedek-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(S),'application/json');toast('Yedek indirildi')}
-function importData(f){if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.cards||!d.log)throw 0;if(!confirm('Mevcut ilerlemenin yerine yedek yüklenecek. Emin misin?'))return;localStorage.setItem(KEY,JSON.stringify(d));S=load();syncCustom();fixToday();save();render();toast('Yedek yüklendi')}catch(e){toast('Geçerli bir yedek dosyası değil')}};r.readAsText(f)}
-function resetAll(){if(confirm('Tüm ilerleme silinecek. Bu geri alınamaz. Emin misin?')&&confirm('Son kez: gerçekten sıfırlansın mı?')){localStorage.removeItem(KEY);S=load();syncCustom();save();render()}}
+function importData(f,inp){
+  if(!f)return;const r=new FileReader();
+  r.onload=()=>{
+    if(inp)inp.value='';
+    let d=null;try{d=JSON.parse(r.result)}catch(e){}
+    const obj=x=>x&&typeof x==='object'&&!Array.isArray(x);
+    if(!obj(d)||!obj(d.cards)||!obj(d.log)||(d.custom&&!Array.isArray(d.custom))){toast('Geçerli bir yedek dosyası değil');return}
+    if(!confirm('Mevcut ilerlemenin yerine yedek yüklenecek. Emin misin?'))return;
+    try{localStorage.setItem(KEY+'-prev',localStorage.getItem(KEY)||'')}catch(e){} // önceki durumun kopyası
+    try{localStorage.setItem(KEY,JSON.stringify(d))}catch(e){toast('Yedek yüklenemedi: telefonda yer yok');return}
+    S=load();syncCustom();fixToday();save();render();toast('Yedek yüklendi');
+  };
+  r.readAsText(f);
+}
+function resetAll(){
+  if(!confirm('Tüm ilerlemen silinecek (kendi eklediğin kelimeler ve ayarların kalır). Bu geri alınamaz. Emin misin?')||!confirm('Son kez: gerçekten sıfırlansın mı?'))return;
+  const keep={set:S.set,custom:S.custom,m1:1};
+  try{localStorage.setItem(KEY,JSON.stringify(keep))}catch(e){}
+  S=load();syncCustom();save();render();
+}
 let deferred=null;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;if(tab==='set')render()});
 function doInstall(){if(deferred){deferred.prompt();deferred=null}}
@@ -511,9 +544,13 @@ function quitSession(){
 }
 function endSession(){clearTimeout(autoT);stopRec();if(canSpeak)speechSynthesis.cancel();ses=null;$('#ses').classList.add('hidden');save();render()}
 function startNew(){
+  if(S.tn.day!==today())S.tn={day:today(),ids:[]};
   let left=S.set.daily-S.tn.ids.length;
   if(left<=0)left=10;
   const ws=nextNew(left);const queue=[];
+  // bugün başlanıp yarıda bırakılan kelimeler: kalan adımları önce tamamlat
+  const half=S.tn.ids.filter(id=>B[id]&&S.cards[id]&&S.cards[id].s<3);
+  shuffle(half).forEach(id=>queue.push(q('mc_tr_en',id)));shuffle(half).forEach(id=>queue.push(q('type',id)));
   for(let g=0;g<ws.length;g+=5){
     const grp=ws.slice(g,g+5);
     grp.forEach(w=>queue.push(q('intro',w.id)));
@@ -545,7 +582,7 @@ function startIntense(){
     grp.forEach(id=>queue.push(q('intro',id)));
     [canSpeak?'listen_mc':'mc_en_tr','mc_tr_en','cloze','type'].forEach(t=>shuffle(grp).forEach(id=>queue.push(q(t,id))));
   }
-  startSession({mode:'quick',hardStep:true,queue,title:'Yoğun çalışma',msg:'Bu kelimeleri dört farklı yoldan çalıştın. Yarın tekrarlarında yine karşına çıkacaklar.'});
+  startSession({mode:'quick',hardStep:true,queue,title:'Yoğun çalışma',msg:'Bu kelimeleri dört farklı yoldan çalıştın. Yanlış yaptıkların en geç yarın tekrar sorulacak.'});
 }
 function startPairs(){
   const queue=[];
@@ -614,7 +651,7 @@ function renderItem(){
   }else if(it.type==='speak'){
     body.innerHTML=`<div class="qlabel">Dinle, sonra mikrofona söyle</div><div class="word">${esc(w.head)}</div><div class="row"><div class="okn grow">${esc(w.ok)}</div>${canSpeak?`<button class="spk" onclick="say('${jq(w.id)}')">${SPK}</button><button class="spk" onclick="say('${jq(w.id)}',1)">🐢</button>`:''}</div><div class="mut">${esc(w.tr)}</div>
     <div class="ctr" style="margin-top:34px"><button class="spk big" id="micb" onclick="listen()">${MIC}</button><div id="spst" class="mut" style="margin-top:12px;min-height:44px">Mikrofona dokun ve kelimeyi söyle</div></div>`;
-    foot.innerHTML=`<button class="btn ghost wide" onclick="ses.cur.noRe=true;answer(false)">Geç</button>`;
+    foot.innerHTML=`<button class="btn ghost wide" onclick="next()">Geç</button>`;
     say(w.id);return;
   }else{ // type, listen_type
     const L=it.type==='listen_type';
@@ -635,14 +672,18 @@ function pick(btn){
   if(!ok){btn.classList.add('no');ses.conf=btn.dataset.id}
   answer(ok);
 }
+const sq=s=>s.replace(/[-\s]/g,'');
+const HOMO=['write right','there their','to too two','see sea','hear here','know no','new knew','one won','our hour','son sun','meet meat','buy by bye','for four','week weak','wear where','weather whether','which witch','hole whole','peace piece','plane plain','male mail','sale sail','tail tale','wait weight','way weigh','wood would','flower flour','eye i','pair pear','break brake','steal steel','road rode','role roll','site sight','sweet suite','threw through','waste waist','allowed aloud','bored board','fair fare','hair hare','heal heel','higher hire','passed past','poor pour','rain reign','root route','sell cell','sent cent scent','some sum','stair stare','warn worn','principal principle'].map(g=>g.split(' '));
 const norm=s=>s.toLowerCase().replace(/[’`´]/g,"'").replace(/\s+/g,' ').replace(/[.!?]+$/,'').trim();
 function checkType(){
   if(ses.answered)return;
   const v=norm($('#tin').value);if(!v){$('#tin').focus();return}
   const w=B[ses.cur.id],acc=w.head.split(/,\s*/).map(norm);
   // dinlemede sesteş kelime yazıldıysa da kabul et
-  const homo=ses.cur.type==='listen_type'&&W.some(x=>norm(x.head)===v&&x.ok===w.ok);
-  const ok=acc.includes(v)||homo;
+  const homo=ses.cur.type==='listen_type'&&HOMO.some(g=>g.includes(v)&&acc.some(x=>g.includes(x)));
+  // Türkçesi birebir aynı olan başka bir kelime yazıldıysa (child/kid, bicycle/bike) o da doğru sayılır
+  const syn=ses.cur.type==='type'&&W.some(x=>x.tr===w.tr&&x.head.split(/,\s*/).map(norm).includes(v));
+  const ok=acc.includes(v)||acc.some(x=>sq(x)===sq(v))||homo||syn;
   if(!ok){const o=W.find(x=>norm(x.head)===v&&x.id!==w.id);if(o)ses.conf=o.id}
   answer(ok);
 }
@@ -656,8 +697,8 @@ function answer(ok){
   ses.conf=null;
   if(first&&!it.re){
     if(ses.mode==='review')grade(w.id,ok);
-    else if((ses.mode==='quick'||ses.mode==='exam')&&!ok){c.l++;c.b=Math.max(1,c.b-1);c.d=today()}
-    if(ses.mode!=='learn')logAdd('r');
+    else if((ses.mode==='quick'||ses.mode==='exam')&&!ok){if(c.lq!==today()){c.l++;c.b=Math.max(1,c.b-1);c.lq=today()}c.d=c.t===today()?today()+1:Math.min(c.d,today())}
+    if(ses.mode!=='learn')logAdd(ses.mode==='free'?'a':'r');
   }
   if(!it.re){logAdd(ok?'ok':'no');ok?ses.ok++:ses.no++}
   stopRec();const bl=$('#blank');if(bl)bl.textContent=bl.dataset.t;
@@ -673,23 +714,23 @@ function finish(){
   save();
   const tot=ses.ok+ses.no,pct=tot?Math.round(100*ses.ok/tot):100,min=Math.max(1,Math.round((Date.now()-ses.t0)/6e4));
   const more=ses.mode==='review'&&dueCards().length;
-  let msg0={learn:'Bu kelimeler yarın ilk tekrarına gelecek. Uyumadan önce "Akşam tekrarı"nı yapmayı unutma.',review:more?`Hâlâ ${more} tekrar bekliyor.`:'Bugünün tekrarları bitti. Yarın görüşürüz!',quick:'Yanlış yaptıkların tekrar listesine eklendi.',free:'Güzel. Bu kelimeler yarın tekrar karşına çıkacak.'}[ses.mode];
+  let msg0={learn:'Bu kelimeler yarın ilk tekrarına gelecek. Uyumadan önce "Akşam tekrarı"nı yapmayı unutma.',review:more?`Hâlâ ${more} tekrar bekliyor.`:'Bugünün tekrarları bitti. Yarın görüşürüz!',quick:ses.missed.size?'Yanlış yaptıkların en geç yarın tekrar sorulacak.':'Hepsini doğru bildin!',free:'Güzel. Bu kelimeler yarın tekrar karşına çıkacak.'}[ses.mode];
   if(ses.msg)msg0=ses.msg;
   if(ses.hardStep){S.hd=today();ses.seen.forEach(id=>{if(S.cards[id])S.cards[id].hi=today()})}
   if(ses.mode==='exam'){
     S.exams.push({d:today(),ok:ses.ok,n:tot,miss:[...ses.missed].map(id=>B[id].head)});
-    msg0='Sonucun: '+ses.ok+' / '+tot+'. Yanlış yaptıkların tekrar listesine eklendi.';
+    msg0='Sonucun: '+ses.ok+' / '+tot+'.'+(ses.missed.size?' Yanlış yaptıkların en geç yarın tekrar sorulacak.':'');
   }
   save();
   $('#sbody').innerHTML=`<div class="ctr" style="margin-top:36px"><div style="font-size:64px">${pct>=80?'🎉':'💪'}</div><h1>${esc(ses.title)} tamam</h1><p class="mut">${msg0}</p></div>
-  <div class="stats"><div class="stat"><b>${ses.seen.size}</b><span>Kelime</span></div><div class="stat"><b>${pct}%</b><span>Doğruluk</span></div><div class="stat"><b>${min} dk</b><span>Süre</span></div></div>
+  <div class="stats"><div class="stat"><b>${ses.seen.size}</b><span>Kelime</span></div><div class="stat"><b>%${pct}</b><span>Doğruluk</span></div><div class="stat"><b>${min} dk</b><span>Süre</span></div></div>
   ${ses.missed.size?`<div class="card"><b>Zorlandıkların</b>${[...ses.missed].map(id=>`<div class="wrow"><div class="grow"><b>${esc(B[id].head)}</b> <span class="mut sm">${esc(B[id].ok)}</span><div class="mut sm">${esc(B[id].tr)}</div></div>${canSpeak?`<button class="spk" onclick="say('${jq(id)}')">${SPK}</button>`:''}</div>`).join('')}</div>`:''}`;
   $('#sfoot').innerHTML=(ses.mode==='exam'&&navigator.share?'<button class="btn sec wide" style="margin-bottom:8px" onclick="shareExam()">Sonucu paylaş</button>':'')+(more?'<button class="btn wide" onclick="endSession();startReview()">Tekrarlara devam et</button>':'')+`<button class="btn ${more?'ghost':''} wide" onclick="endSession()">Bitir</button>`;
 }
 
 /* ---------- etkinlikler ---------- */
 let act=null;
-function mark(id,ok){const c=S.cards[id];if(!c)return;c.s++;if(ok)c.c++;else c.lw=today();logAdd('r');logAdd(ok?'ok':'no')}
+function mark(id,ok){const c=S.cards[id];if(!c)return;c.s++;if(ok)c.c++;else c.lw=today();logAdd('a');logAdd(ok?'ok':'no')}
 function pickIds(n,f){ // öğrenilen kelimeler sırayla döner: en uzun süredir hiçbir etkinlikte çıkmayan önce gelir
   const ids=Object.keys(S.cards).filter(id=>B[id]&&(!f||f(B[id]))).map(id=>[id,(S.cards[id].u||0)+Math.random()*.9]).sort((a,b)=>a[1]-b[1]).map(x=>x[0]);
   const out=[],h=new Set(),t=new Set();
@@ -698,7 +739,7 @@ function pickIds(n,f){ // öğrenilen kelimeler sırayla döner: en uzun süredi
   return shuffle(out);
 }
 function openAct(a){
-  if(act){clearInterval(act.tick);clearTimeout(act.to)}
+  if(act){clearInterval(act.tick);clearTimeout(act.to);if(act.wl)try{act.wl.release()}catch(e){}}
   if(canSpeak)speechSynthesis.cancel();
   act=a;const b=$('#sbody');b.ontouchstart=b.ontouchend=null;b.scrollTop=0;
   $('#ses').classList.remove('hidden');$('#sfoot').innerHTML='';
@@ -713,7 +754,7 @@ function actBar(i,n,txt){$('#sbar').style.width=(100*i/n)+'%';$('#scount').textC
 function actNext(fn){clearTimeout(act.to);act.i++;fn()}
 const fbHtml=(ok,l1,l2)=>`<div class="fb ${ok?'ok':'no'}"><h3>${ok?'✓ Doğru':'✗ Doğrusu şöyle'}</h3><b style="font-size:18px">${esc(l1)}</b><div class="sm mut">${esc(l2||'')}</div></div>`;
 function actDone(title,emoji,stats,note,again){
-  clearInterval(act.tick);clearTimeout(act.to);save();actBar(1,1,'');
+  clearInterval(act.tick);clearTimeout(act.to);if(act.wl){try{act.wl.release()}catch(e){}act.wl=null}save();actBar(1,1,'');
   const b=$('#sbody');b.ontouchstart=b.ontouchend=null;
   b.innerHTML=`<div class="ctr" style="margin-top:36px"><div style="font-size:64px">${emoji}</div><h1>${title}</h1><p class="mut">${note||''}</p></div><div class="stats" style="grid-template-columns:repeat(${stats.length},1fr)">${stats.map(([v,l])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div>`;
   $('#sfoot').innerHTML=`<button class="btn wide" onclick="${again}()">Tekrar oyna</button><button class="btn ghost wide" onclick="endAct()">Bitir</button>`;
@@ -904,11 +945,11 @@ function playHF(){
   const w=B[a.ids[a.i]],g=++a.gen,en=w.head.replace(',',' ,');
   actBar(a.i,a.ids.length);drawHF();
   const steps=[[en,'en',0],[w.tr.replace(/\(.*?\)/g,'').replace(/;/g,','),'tr',0],[en,'en',1]];if(w.ex)steps.push([w.ex,'en',0]);
-  let k=0;const run=()=>{if(act!==a||a.paused||a.gen!==g)return;if(k>=steps.length){a.i++;a.to=setTimeout(playHF,900);return}const st=steps[k++];sayQ(st[0],st[1],st[2],run)};
+  let k=0;const run=()=>{if(act!==a||a.paused||a.gen!==g)return;if(k>=steps.length){a.to=setTimeout(()=>{if(act===a&&a.gen===g&&!a.paused){a.i++;playHF()}},900);return}const st=steps[k++];sayQ(st[0],st[1],st[2],run)};
   speechSynthesis.cancel();a.to=setTimeout(run,150);
 }
 function drawHF(){
-  const a=act,w=B[a.ids[a.i]];
+  const a=act;if(a.i>=a.ids.length)return;const w=B[a.ids[a.i]];
   $('#sbody').innerHTML=`<div class="qlabel">Eller serbest dinleme · sadece dinle</div><div class="ctr" style="margin-top:30px"><div class="word">${esc(w.head)}</div><div class="okn">${esc(w.ok)}</div><div class="mean">${esc(w.tr)}</div>${w.ex?`<div class="ex"><p>${esc(w.ex)}</p><p>${esc(w.ext)}</p></div>`:''}</div>`;
   $('#sfoot').innerHTML=`<div class="grid2"><button class="btn sec" onclick="toggleHF()">${a.paused?'▶ Devam et':'⏸ Duraklat'}</button><button class="btn sec" onclick="skipHF()">⏭ Sonraki</button></div>`;
 }
@@ -916,9 +957,13 @@ function toggleHF(){const a=act;a.paused=!a.paused;a.gen++;clearTimeout(a.to);sp
 function skipHF(){const a=act;a.gen++;clearTimeout(a.to);speechSynthesis.cancel();a.i++;a.paused=false;playHF()}
 
 /* ---------- başlat ---------- */
+let footAt=0;
+new MutationObserver(()=>{footAt=Date.now()}).observe($('#sfoot'),{childList:true});
+$('#sfoot').addEventListener('click',e=>{if(e.isTrusted&&Date.now()-footAt<350){e.stopPropagation();e.preventDefault()}},true);
+window.addEventListener('storage',e=>{if(e.key===KEY&&!ses&&!act){refreshIfStale();render()}});
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!ses&&!act)render()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!ses&&!act){refreshIfStale();render()}});
 save();render();
 </script>
 </body>
