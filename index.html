@@ -198,12 +198,21 @@ function grade(id,ok){
 
 /* ---------- ses ---------- */
 let voices=[];
-if('speechSynthesis' in window){const lv=()=>voices=speechSynthesis.getVoices();lv();speechSynthesis.onvoiceschanged=lv}
+if('speechSynthesis' in window){const lv=()=>{voices=speechSynthesis.getVoices();try{if(tab==='set'&&!ses&&document.activeElement.tagName!=='SELECT')render()}catch(e){}};lv();speechSynthesis.onvoiceschanged=lv}
+const LANGN={'en-US':'Amerikan','en-GB':'İngiliz','en-AU':'Avustralya','en-IN':'Hindistan','en-CA':'Kanada','en-IE':'İrlanda','en-ZA':'Güney Afrika','en-NZ':'Yeni Zelanda','en-NG':'Nijerya'};
+const enVoices=()=>voices.filter(v=>/^en([-_]|$)/i.test(v.lang)).sort((a,b)=>a.lang.localeCompare(b.lang)||a.name.localeCompare(b.name));
+const voiceLabel=v=>{const l=v.lang.replace('_','-');return (LANGN[l]||l)+' · '+v.name.replace(/^(Microsoft|Google)\s+/,'').replace(/\s*-\s*English.*$/,'')};
+function setVoice(v){S.set.voice=v;save();speak('Hello! This is my voice. Nice to meet you.')}
 function speak(t,slow){
   if(!('speechSynthesis' in window))return;
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(t);u.lang=S.set.accent;
-  const v=voices.find(v=>v.lang.replace('_','-')===S.set.accent);if(v)u.voice=v;
+  const en=enVoices(),sv=S.set.voice;let v=null;
+  if(sv==='*'&&en.length)v=en[Math.floor(Math.random()*en.length)];
+  else if(sv)v=voices.find(x=>x.name===sv);
+  if(!v)v=voices.find(x=>x.lang.replace('_','-')===S.set.accent);
+  if(v){u.voice=v;u.lang=v.lang}
+  u.pitch=S.set.pitch||1;
   u.rate=slow?0.5:S.set.rate;speechSynthesis.speak(u);
 }
 const canSpeak='speechSynthesis' in window;
@@ -410,8 +419,11 @@ function vSet(){
   <div class="card">
     <div class="field"><span>Günlük yeni kelime</span><select onchange="setOpt('daily',+this.value)">${[5,10,15,20,25,30].map(n=>`<option ${n===s.daily?'selected':''}>${n}</option>`).join('')}</select></div>
     <div class="field"><span>Aksan</span><select onchange="setOpt('accent',this.value)"><option value="en-US" ${s.accent==='en-US'?'selected':''}>Amerikan</option><option value="en-GB" ${s.accent==='en-GB'?'selected':''}>İngiliz</option></select></div>
+    <div class="field"><span>Ses</span><select style="max-width:62%" onchange="setVoice(this.value)"><option value="">Otomatik (aksana göre)</option><option value="*" ${s.voice==='*'?'selected':''}>Karışık (her seferinde değişir)</option>${enVoices().map(v=>`<option value="${esc(v.name)}" ${s.voice===v.name?'selected':''}>${esc(voiceLabel(v))}</option>`).join('')}</select></div>
+    <div class="field"><span>Ses tonu</span><select onchange="setOpt('pitch',+this.value);speak('Hello! This is my voice.')">${[[0.6,'Kalın'],[0.8,'Biraz kalın'],[1,'Normal'],[1.25,'İnce']].map(([v,t])=>`<option value="${v}" ${v===(s.pitch||1)?'selected':''}>${t}</option>`).join('')}</select></div>
     <div class="field"><span>Okuma hızı</span><select onchange="setOpt('rate',+this.value)">${[[0.7,'Yavaş'],[0.9,'Normal'],[1,'Hızlı']].map(([v,t])=>`<option value="${v}" ${v===s.rate?'selected':''}>${t}</option>`).join('')}</select></div>
     <div class="field"><span>Sesi dene</span><button class="btn smb sec" onclick="speak('Hello! Welcome to your word book.')">🔊 Dinle</button></div>
+    <p class="sm mut" style="margin:6px 0 0">Listede telefonunda yüklü İngilizce sesler görünür (${enVoices().length} ses). Daha fazlası için: telefon Ayarları → "Metin okuma" (Text-to-speech) → Google motoru ayarları → Ses verisini yükle → İngilizce.</p>
   </div>
   <h2>Günlük hatırlatıcı</h2>
   <div class="card">
