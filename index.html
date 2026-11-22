@@ -805,8 +805,16 @@ function startSpeed(){
   act.tick=setInterval(()=>{const a=act;if(!a||a.k!=='speed')return;const left=Math.max(0,a.end-Date.now());actBar(left,60000,Math.ceil(left/1000)+' sn');if(left<=0)endSpeed()},200);
   nextSpeed();
 }
+let spDeck=[];
+function speedId(last){ // öğrenilen tüm kelimeler karıştırılır; hepsi bitmeden hiçbiri tekrar gelmez
+  for(let g=0;g<3;g++){
+    while(spDeck.length){const id=spDeck.pop();if(B[id]&&S.cards[id]&&id!==last)return id}
+    spDeck=shuffle(Object.keys(S.cards).filter(id=>B[id]));
+  }
+  return last;
+}
 function nextSpeed(){
-  const a=act,id=pickIds(1,w=>w.id!==a.last)[0],w=B[id];a.cur=id;a.last=id;a.locked=false;
+  const a=act,id=speedId(a.last),w=B[id];a.cur=id;a.last=id;a.locked=false;
   $('#sbody').innerHTML=`<div class="row" style="margin-top:6px"><div class="qlabel grow" style="margin:0">Türkçesi hangisi?</div><span class="tag">${a.score} doğru</span></div><div class="word">${esc(w.head)}</div><div class="okn">${esc(w.ok)}</div>
   <div class="opts">${shuffle([w,...distract(w)]).map(o=>`<button class="opt" data-ok="${o.id===w.id?1:0}" onclick="tapSpeed(this)">${esc(o.tr)}</button>`).join('')}</div>`;
 }
