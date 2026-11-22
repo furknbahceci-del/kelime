@@ -160,6 +160,7 @@ function load(){
   s=s||{};s.cards=s.cards||{};s.log=s.log||{};
   s.set=Object.assign({daily:20,accent:'en-US',rate:0.9,remH:20,remM:0},s.set||{});
   s.tn=s.tn||{day:today(),ids:[]};s.custom=s.custom||[];s.exams=s.exams||[];
+  if(!s.m1){if(s.best)delete s.best.speed;s.m1=1} // eski hızlı tur rekoru aynı kelimelerle yapılmıştı: bir kez sıfırla
   return s;
 }
 function save(){
