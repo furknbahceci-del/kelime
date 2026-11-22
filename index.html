@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Kelime Defterim</title>
+<meta name="theme-color" content="#4f46e5">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#f4f5fb;--card:#fff;--tx:#161a2b;--mut:#6b7186;--line:#e4e6f0;--pri:#4f46e5;--pri2:#eef0ff;--ok:#16a34a;--ok2:#e7f7ec;--no:#dc2626;--no2:#fdecec;--amb:#d97706;--amb2:#fff4e0}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1220;--card:#1a1e31;--tx:#eef0fa;--mut:#9aa0b8;--line:#2a2f47;--pri:#818cf8;--pri2:#262b4d;--ok:#4ade80;--ok2:#143222;--no:#f87171;--no2:#3a1a1c;--amb:#fbbf24;--amb2:#3a2c10}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx);font-size:16px;line-height:1.4}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input,textarea,select{font:inherit;color:inherit}
+#view{max-width:560px;margin:0 auto;padding:16px 16px calc(84px + env(safe-area-inset-bottom))}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav button{flex:1;max-width:140px;padding:9px 0 8px;font-size:12px;color:var(--mut);display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+nav button.on{color:var(--pri);font-weight:600}
+h1{font-size:24px;margin:4px 0 2px}h2{font-size:17px;margin:22px 0 10px}
+.mut{color:var(--mut)}.sm{font-size:13px}.ctr{text-align:center}
+.card{background:var(--card);border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.row{display:flex;align-items:center;gap:12px}.grow{flex:1;min-width:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--pri);color:#fff;border-radius:14px;padding:13px 18px;font-weight:600;min-height:48px}
+@media(prefers-color-scheme:dark){.btn{color:#0f1220}}
+.btn.sec{background:var(--pri2);color:var(--pri)}.btn.ghost{background:none;color:var(--mut);font-weight:500}
+.btn.wide{width:100%}.btn.smb{padding:8px 14px;min-height:38px;border-radius:11px;font-size:14px}
+.btn:disabled{opacity:.4}
+.step{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.step:first-of-type{border-top:0}
+.num{width:34px;height:34px;border-radius:50%;background:var(--pri2);color:var(--pri);display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+.num.done{background:var(--ok2);color:var(--ok)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:var(--card);border-radius:16px;padding:12px 8px;text-align:center}
+.stat b{display:block;font-size:22px}.stat span{font-size:12px;color:var(--mut)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{background:var(--card);border-radius:16px;padding:14px;text-align:left;display:block;width:100%}
+.tile b{display:block;margin-bottom:2px}.tile span{font-size:13px;color:var(--mut)}
+.tile:disabled{opacity:.45}
+.bar{height:8px;background:var(--line);border-radius:8px;overflow:hidden}.bar i{display:block;height:100%;background:var(--pri);border-radius:8px}
+.streak{background:var(--amb2);color:var(--amb);border-radius:999px;padding:6px 12px;font-weight:700;font-size:14px;white-space:nowrap}
+.seg{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.seg button{padding:8px 14px;border-radius:999px;background:var(--card);color:var(--mut);font-size:14px;white-space:nowrap}
+.seg button.on{background:var(--pri);color:#fff;font-weight:600}
+@media(prefers-color-scheme:dark){.seg button.on{color:#0f1220}}
+.search{width:100%;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:var(--card);margin:10px 0;outline:none}
+.wrow{display:flex;align-items:center;gap:10px;padding:11px 0;border-top:1px solid var(--line);width:100%;text-align:left}
+.wrow:first-child{border-top:0}
+.wrow b{font-size:16px}.dots{display:flex;gap:3px;margin-top:4px}.dots i{width:7px;height:7px;border-radius:50%;background:var(--line)}.dots i.f{background:var(--ok)}
+.spk{width:42px;height:42px;border-radius:50%;background:var(--pri2);color:var(--pri);display:inline-flex;align-items:center;justify-content:center;flex:none}
+.spk svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.spk.big{width:84px;height:84px}.spk.big svg{width:38px;height:38px}
+.tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:999px;background:var(--pri2);color:var(--pri);font-weight:600}
+.chart{display:flex;align-items:flex-end;gap:4px;height:110px;margin-top:8px}
+.chart div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:1px}
+.chart i{width:100%;border-radius:4px 4px 0 0;display:block}.chart i.n{background:var(--pri)}.chart i.r{background:var(--ok);border-radius:0}
+.chart span{font-size:9px;color:var(--mut);margin-top:3px}
+.field{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.field:first-child{border-top:0}
+.field select,.field input{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+/* oturum */
+.overlay{position:fixed;inset:0;background:var(--bg);z-index:20;display:flex;flex-direction:column}
+.hidden{display:none!important}
+.stop{display:flex;align-items:center;gap:12px;padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top))}
+.stop .bar{flex:1}.x{font-size:26px;line-height:1;color:var(--mut);width:36px;height:36px}
+.sbody{flex:1;overflow-y:auto;padding:8px 20px 20px;max-width:560px;width:100%;margin:0 auto;display:flex;flex-direction:column}
+.sfoot{padding:12px 20px calc(16px + env(safe-area-inset-bottom));max-width:560px;width:100%;margin:0 auto}
+.qlabel{font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin-top:8px}
+.word{font-size:40px;font-weight:800;margin:10px 0 2px;word-break:break-word}
+.okn{font-size:20px;color:var(--pri);font-weight:600}
+.mean{font-size:24px;font-weight:700;margin:14px 0 4px}
+.ex{background:var(--card);border-radius:14px;padding:12px 14px;margin-top:14px}
+.ex p{margin:0}.ex p+p{color:var(--mut);margin-top:4px;font-size:15px}
+.opts{display:flex;flex-direction:column;gap:10px;margin-top:22px}
+.opt{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:15px 16px;text-align:left;font-size:17px;min-height:56px}
+.opt.ok{border-color:var(--ok);background:var(--ok2)}.opt.no{border-color:var(--no);background:var(--no2)}
+.tin{width:100%;font-size:24px;padding:14px;border-radius:14px;border:2px solid var(--line);background:var(--card);margin-top:22px;outline:none;text-align:center}
+.tin:focus{border-color:var(--pri)}
+.fb{border-radius:16px;padding:14px 16px;margin-bottom:10px}.fb.ok{background:var(--ok2)}.fb.no{background:var(--no2)}
+.fb h3{margin:0 0 4px;font-size:16px}.fb.ok h3{color:var(--ok)}.fb.no h3{color:var(--no)}
+.note{width:100%;border:1px dashed var(--line);background:transparent;border-radius:12px;padding:10px 12px;margin-top:14px;min-height:46px;resize:none;outline:none}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);border-radius:22px 22px 0 0;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;padding:18px 20px calc(22px + env(safe-area-inset-bottom))}
+ol.tips{padding-left:20px;margin:6px 0}ol.tips li{margin:9px 0}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:12px;z-index:50;font-size:14px;max-width:90%}
+</style>
+</head>
+<body>
+<main id="view"></main>
+<nav id="nav">
+  <button data-tab="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Bugün</button>
+  <button data-tab="words"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21a2 2 0 0 0 2 2h13v-4"/><path d="M9 8h6"/></svg>Kelimeler</button>
+  <button data-tab="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>İlerleme</button>
+  <button data-tab="set"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.3l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2.3-1.3L14 3h-4l-.3 2.5a7 7 0 0 0-2.3 1.3l-2.3-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .9.1 1.3l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2.3 1.3L10 21h4l.3-2.5a7 7 0 0 0 2.3-1.3l2.3 1 2-3.4-2-1.5c.1-.4.1-.9.1-1.3z"/></svg>Ayarlar</button>
+</nav>
+<div id="ses" class="overlay hidden">
+  <div class="stop"><button class="x" onclick="quitSession()" aria-label="Kapat">×</button><div class="bar"><i id="sbar"></i></div><span id="scount" class="sm mut"></span></div>
+  <div class="sbody" id="sbody"></div>
+  <div class="sfoot" id="sfoot"></div>
+</div>
+<div id="modal" class="modal hidden" onclick="if(event.target===this)closeModal()"><div class="sheet" id="sheet"></div></div>
+<script src="words.js"></script>
+<script>
+'use strict';
+/* ---------- yardımcılar ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today=()=>{const d=new Date();return Math.floor((d.getTime()-d.getTimezoneOffset()*6e4)/864e5)};
+const dayStr=(n,o)=>new Date(n*864e5).toLocaleDateString('tr-TR',Object.assign({timeZone:'UTC',day:'numeric',month:'short'},o||{}));
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const sample=(a,n)=>shuffle(a).slice(0,n);
+function toast(t){const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),2600)}
+const SPK='<svg viewBox="0 0 24 24"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+const POS={'n.':'isim','v.':'fiil','adj.':'sıfat','adv.':'zarf','prep.':'edat','conj.':'bağlaç','pron.':'zamir','det.':'belirleyici','exclam.':'ünlem','number':'sayı','modal v.':'kip fiili','auxiliary v.':'yardımcı fiil','indefinite article':'belirsiz tanımlık','definite article':'belirli tanımlık','infinitive marker':'mastar eki'};
+const trPos=p=>p.split(/\s*[,\/]\s*/).map(x=>POS[x]||x).join(', ');
+
+/* ---------- kelime verisi ---------- */
+function rng(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const LEVELS=['A1','A2','B1','B2'];
+const W=[];const B={};
+(function(){
+  const raw=window.WORDS||[];
+  LEVELS.forEach((lv,li)=>{
+    const part=raw.filter(r=>r[0]===lv).map(r=>{
+      const m=r[1].match(/^(.*?)\s*\((.*)\)$/);
+      const head=(m?m[1]:r[1]).replace('™','');
+      return{id:lv+':'+r[1],lv,w:r[1],head,hint:m?m[2]:'',pos:r[2],tr:r[3],ok:r[4],ex:r[5],ext:r[6]};
+    });
+    const r=rng(1000+li);
+    for(let i=part.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[part[i],part[j]]=[part[j],part[i]]}
+    part.forEach(w=>{W.push(w);B[w.id]=w});
+  });
+})();
+
+/* ---------- durum ---------- */
+const KEY='kelime-defterim-v1';
+const IV=[0,1,2,4,8,16,35,75,150]; // kutu -> gün aralığı
+const LEARNED=5;
+let S=load();
+function load(){
+  let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+  s=s||{};s.cards=s.cards||{};s.log=s.log||{};
+  s.set=Object.assign({daily:20,accent:'en-US',rate:0.9,remH:20,remM:0},s.set||{});
+  s.tn=s.tn||{day:today(),ids:[]};
+  return s;
+}
+function save(){
+  if(S.tn.day!==today())S.tn={day:today(),ids:[]};
+  localStorage.setItem(KEY,JSON.stringify(S));
+  pushState();
+}
+function pushState(){ // servis çalışanının hatırlatma için okuyacağı özet
+  if(!('caches' in window))return;
+  const t=today(),l=S.log[t];
+  const body=JSON.stringify({lastDay:l&&(l.n+l.r)>0?t:lastActiveDay(),remH:S.set.remH,remM:S.set.remM,due:dueCards(t+1).length});
+  caches.open('kelime-state').then(c=>c.put('state.json',new Response(body))).catch(()=>{});
+}
+function lastActiveDay(){let m=0;for(const d in S.log){const l=S.log[d];if(l.n+l.r>0&&+d>m)m=+d}return m}
+function logAdd(k){const d=today();const l=S.log[d]=S.log[d]||{n:0,r:0,ok:0,no:0};l[k]++}
+const dueCards=(t=today())=>Object.keys(S.cards).filter(id=>B[id]&&S.cards[id].d<=t).sort((a,b)=>S.cards[a].d-S.cards[b].d);
+const isHard=c=>c.f||c.l>=2;
+function counts(){let learning=0,learned=0,hard=0;for(const id in S.cards){if(!B[id])continue;const c=S.cards[id];c.b>=LEARNED?learned++:learning++;if(isHard(c))hard++}return{learning,learned,hard,total:learning+learned}}
+function streak(){let t=today(),n=0;const act=d=>S.log[d]&&S.log[d].n+S.log[d].r>0;if(!act(t))t--;while(act(t)){n++;t--}return n}
+function nextNew(n){const out=[];for(const w of W){if(!S.cards[w.id]){out.push(w);if(out.length>=n)break}}return out}
+function grade(id,ok){
+  const c=S.cards[id];
+  if(ok){c.b=Math.min(8,c.b+1);c.d=today()+IV[c.b]+(c.b>=5?Math.floor(Math.random()*3):0)}
+  else{c.l++;c.b=Math.max(1,Math.floor(c.b/2));c.d=today()+1}
+}
+
+/* ---------- ses ---------- */
+let voices=[];
+if('speechSynthesis' in window){const lv=()=>voices=speechSynthesis.getVoices();lv();speechSynthesis.onvoiceschanged=lv}
+function speak(t,slow){
+  if(!('speechSynthesis' in window))return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(t);u.lang=S.set.accent;
+  const v=voices.find(v=>v.lang.replace('_','-')===S.set.accent);if(v)u.voice=v;
+  u.rate=slow?0.5:S.set.rate;speechSynthesis.speak(u);
+}
+const canSpeak='speechSynthesis' in window;
+const say=(id,slow)=>speak(B[id].head.replace(',',' ,'),slow);
+const sayEx=id=>speak(B[id].ex);
+
+/* ---------- gezinme ---------- */
+let tab='home',wfilter='learning',wquery='',wlimit=60;
+document.getElementById('nav').onclick=e=>{const b=e.target.closest('button');if(b){tab=b.dataset.tab;render()}};
+function render(){
+  if(S.tn.day!==today()){S.tn={day:today(),ids:[]}}
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
+  $('#view').innerHTML=({home:vHome,words:vWords,stats:vStats,set:vSet})[tab]();
+  window.scrollTo(0,0);
+}
+
+/* ---------- Bugün ---------- */
+function vHome(){
+  if(!W.length)return'<div class="card">Kelime verisi yüklenemedi (words.js).</div>';
+  const t=today(),due=dueCards().length,c=counts(),nw=S.tn.ids.length,goal=S.set.daily,left=Math.max(0,goal-nw),remain=W.length-Object.keys(S.cards).filter(id=>B[id]).length;
+  const l=S.log[t]||{n:0,r:0};
+  const h=new Date().getHours(),hi=h<12?'Günaydın':h<18?'İyi günler':'İyi akşamlar';
+  const revDone=due===0&&c.total>0,newDone=left===0||remain===0;
+  const nxt=nextNew(1)[0];
+  return `
+  <div class="row"><div class="grow"><h1>${hi} 👋</h1><div class="mut sm">${dayStr(t,{weekday:'long',month:'long'})}</div></div><div class="streak">🔥 ${streak()} gün</div></div>
+  <div class="card">
+    <b>Bugünkü plan</b>
+    <div class="step"><div class="num ${revDone?'done':''}">${revDone?'✓':'1'}</div><div class="grow"><b>Tekrarlar</b><div class="mut sm">${due?due+' kelime tekrar bekliyor':c.total?'Bugünlük tekrar kalmadı':'Henüz tekrar yok'}</div></div>${due?'<button class="btn smb" onclick="startReview()">Başla</button>':''}</div>
+    <div class="step"><div class="num ${newDone?'done':''}">${newDone?'✓':'2'}</div><div class="grow"><b>Yeni kelimeler</b><div class="mut sm">${remain===0?'Tüm kelimeleri gördün 🎉':`${nw} / ${goal} öğrenildi${nxt?' · seviye '+nxt.lv:''}`}</div></div>${remain?`<button class="btn smb ${left?'':'sec'}" onclick="startNew()">${left?(nw?'Devam':'Başla'):'+10'}</button>`:''}</div>
+    <div class="step"><div class="num">3</div><div class="grow"><b>Akşam tekrarı</b><div class="mut sm">${nw?'Bugünkü '+nw+' kelimeyi uyumadan önce bir daha gör':'Önce bugünün kelimelerini öğren'}</div></div>${nw?'<button class="btn smb sec" onclick="startEvening()">Başla</button>':''}</div>
+  </div>
+  ${due>goal*3?'<div class="card sm" style="background:var(--amb2);color:var(--amb)">Biriken tekrarın çok. Bugün yeni kelimeyi boş ver, önce tekrarları bitir — unutmamanın yolu bu.</div>':''}
+  <h2>Kısa tekrarlar</h2>
+  <div class="grid2">
+    <button class="tile" ${c.total<4?'disabled':''} onclick="startQuick()"><b>⚡ 2 dakikalık tur</b><span>10 soru, zayıf kelimelerden</span></button>
+    <button class="tile" ${c.hard<1?'disabled':''} onclick="startHard()"><b>🎯 Zor kelimeler</b><span>${c.hard} kelime</span></button>
+    <button class="tile" ${c.total<4||!canSpeak?'disabled':''} onclick="startListen()"><b>🎧 Dinleme</b><span>Duy, anlamını bul, yaz</span></button>
+    <button class="tile" ${c.total<4?'disabled':''} onclick="startWrite()"><b>✍️ Yazma</b><span>Türkçeden İngilizceye</span></button>
+  </div>
+  <h2>Durumum</h2>
+  <div class="stats"><div class="stat"><b>${c.learning}</b><span>Öğreniyorum</span></div><div class="stat"><b>${c.learned}</b><span>Öğrendim</span></div><div class="stat"><b>${l.n+l.r}</b><span>Bugün çalışılan</span></div></div>
+  ${levelBars()}
+  <button class="btn ghost wide" onclick="showTips()">💡 Unutmamak için 7 kural</button>`;
+}
+function levelBars(){
+  return '<div class="card">'+LEVELS.filter(lv=>W.some(w=>w.lv===lv)).map(lv=>{
+    const all=W.filter(w=>w.lv===lv),st=all.filter(w=>S.cards[w.id]).length;
+    return `<div class="row sm" style="margin:6px 0"><b style="width:26px">${lv}</b><div class="bar grow"><i style="width:${100*st/all.length}%"></i></div><span class="mut">${st}/${all.length}</span></div>`}).join('')+'</div>';
+}
+function showTips(){
+  openModal(`<h2 style="margin-top:0">Unutmamak için 7 kural</h2>
+  <ol class="tips">
+  <li><b>Her gün gir, az da olsa.</b> Beyin bir kelimeyi tam unutmak üzereyken tekrar görürse kalıcı hafızaya alır. Uygulama her kelimeyi 1, 2, 4, 8, 16, 35… gün sonra tekrar sorar; sen sadece "Tekrarlar"ı bitir.</li>
+  <li><b>Cevaba bakmadan önce zorlan.</b> Hatırlamaya çalışmak (bilemesen bile) kelimeyi okumaktan çok daha güçlü iz bırakır. Tahmin et, sonra bak.</li>
+  <li><b>Sesli söyle.</b> Her kelimeyi dinle ve yüksek sesle 3 kez tekrar et. Duymak + söylemek, yalnız okumaktan daha kalıcıdır.</li>
+  <li><b>Kendi ipucunu yaz.</b> Kelimeyi Türkçede benzeyen bir sese ya da komik bir görüntüye bağla (ör. <i>kitchen</i> → "kiçın: <u>kiç</u> kadar mutfak"). Saçma olan akılda kalır. Kelime kartındaki "hafıza ipucu" alanını kullan.</li>
+  <li><b>Kelimeyi cümleyle öğren.</b> Örnek cümleyi sesli oku, sonra kendi hayatından bir cümle kur.</li>
+  <li><b>Sabah öğren, akşam tekrar et.</b> Yeni kelimeleri gün içinde öğren, uyumadan önce "Akşam tekrarı"nı yap; uyku hafızayı pekiştirir.</li>
+  <li><b>Yanlış yapmaktan korkma.</b> Yanlış yaptığın kelime daha sık gelir; birkaç gün sonra en iyi bildiğin kelime o olur.</li>
+  </ol><button class="btn wide" onclick="closeModal()">Tamam</button>`);
+}
+
+/* ---------- Kelimeler ---------- */
+function wordList(){
+  const q=wquery.trim().toLocaleLowerCase('tr');
+  let a=W;
+  if(wfilter==='learning')a=a.filter(w=>S.cards[w.id]&&S.cards[w.id].b<LEARNED);
+  else if(wfilter==='learned')a=a.filter(w=>S.cards[w.id]&&S.cards[w.id].b>=LEARNED);
+  else if(wfilter==='hard')a=a.filter(w=>S.cards[w.id]&&isHard(S.cards[w.id]));
+  else if(wfilter==='today')a=a.filter(w=>S.tn.ids.includes(w.id));
+  else if(wfilter==='new')a=a.filter(w=>!S.cards[w.id]);
+  if(q)a=a.filter(w=>w.head.toLowerCase().includes(q)||w.tr.toLocaleLowerCase('tr').includes(q));
+  if(wfilter!=='new'&&wfilter!=='all')a=a.slice().sort((x,y)=>S.cards[x.id].d-S.cards[y.id].d);
+  return a;
+}
+function vWords(){
+  const c=counts(),tabs=[['learning','Öğreniyorum '+c.learning],['learned','Öğrendim '+c.learned],['hard','Zor '+c.hard],['today','Bugün '+S.tn.ids.length],['new','Sırada'],['all','Tümü']];
+  return `<h1>Kelimeler</h1>
+  <input class="search" placeholder="Kelime ya da anlam ara…" value="${esc(wquery)}" oninput="wquery=this.value;wlimit=60;$('#wl').innerHTML=wRows()">
+  <div class="seg">${tabs.map(([k,t])=>`<button class="${wfilter===k?'on':''}" onclick="wfilter='${k}';wlimit=60;render()">${t}</button>`).join('')}</div>
+  <div class="card" id="wl">${wRows()}</div>`;
+}
+function wRows(){
+  const a=wordList();
+  if(!a.length)return'<div class="mut ctr" style="padding:18px 0">'+({learning:'Henüz öğrenmeye başladığın kelime yok. "Bugün" sekmesinden başla.',learned:'Bir kelime, aralıklı tekrarlarda art arda doğru bilindikçe (yaklaşık 2 hafta) buraya geçer.',hard:'Zor kelimen yok. 2 kez yanlış yaptığın ya da yıldızladığın kelimeler burada toplanır.',today:'Bugün henüz yeni kelime öğrenmedin.'}[wfilter]||'Sonuç yok.')+'</div>';
+  return a.slice(0,wlimit).map(w=>{const c=S.cards[w.id];
+    return `<div class="wrow"><button class="grow" style="text-align:left" onclick="showWord('${esc(w.id)}')"><b>${esc(w.head)}</b> <span class="mut sm">${esc(w.ok)}</span><div class="mut sm">${esc(w.tr)}</div>${c?`<div class="dots">${[1,2,3,4,5,6,7,8].map(i=>`<i class="${i<=c.b?'f':''}"></i>`).join('')}</div>`:''}</button>${canSpeak?`<button class="spk" onclick="say('${esc(w.id)}')">${SPK}</button>`:''}</div>`}).join('')
+    +(a.length>wlimit?`<button class="btn ghost wide" onclick="wlimit+=100;$('#wl').innerHTML=wRows()">Daha fazla göster (${a.length-wlimit})</button>`:'');
+}
+function wordCard(w,opt){
+  opt=opt||{};
+  return `<div><span class="tag">${w.lv}</span> <span class="mut sm">${esc(trPos(w.pos))}${w.hint?' · '+esc(w.hint):''}</span></div>
+  <div class="word">${esc(w.head)}</div>
+  <div class="row"><div class="okn grow">${esc(w.ok)}</div>${canSpeak?`<button class="spk" onclick="say('${esc(w.id)}')">${SPK}</button><button class="spk" onclick="say('${esc(w.id)}',1)" title="Yavaş">🐢</button>`:''}</div>
+  <div class="mean">${esc(w.tr)}</div>
+  <div class="ex" ${canSpeak?`onclick="sayEx('${esc(w.id)}')"`:''}><p>${canSpeak?'🔊 ':''}${esc(w.ex)}</p><p>${esc(w.ext)}</p></div>
+  <textarea class="note" rows="2" placeholder="Hafıza ipucun: bu kelime sana neyi hatırlatıyor?" onchange="setNote('${esc(w.id)}',this.value)">${esc((S.cards[w.id]&&S.cards[w.id].n)||notes[w.id]||'')}</textarea>`;
+}
+const notes={};
+function setNote(id,v){if(S.cards[id]){S.cards[id].n=v;save()}else notes[id]=v}
+function showWord(id){
+  const w=B[id],c=S.cards[id];
+  openModal(wordCard(w)+(c?`<div class="card sm"><div class="row"><div class="grow">Sonraki tekrar</div><b>${c.d<=today()?'Bugün':dayStr(c.d)}</b></div><div class="row"><div class="grow">Doğru / toplam</div><b>${c.c} / ${c.s}</b></div><div class="row"><div class="grow">Unutma sayısı</div><b>${c.l}</b></div></div>
+  <button class="btn sec wide" onclick="toggleHard('${esc(id)}')">${c.f?'★ Zor işaretini kaldır':'☆ Zor olarak işaretle'}</button>`:'<p class="mut sm">Bu kelime henüz sırada.</p>')
+  +'<button class="btn ghost wide" onclick="closeModal()">Kapat</button>');
+  say(id);
+}
+function toggleHard(id){S.cards[id].f=!S.cards[id].f;save();closeModal();render()}
+function openModal(h){$('#sheet').innerHTML=h;$('#modal').classList.remove('hidden')}
+function closeModal(){$('#modal').classList.add('hidden');if(tab==='words'&&$('#wl'))$('#wl').innerHTML=wRows()}
+
+/* ---------- İlerleme ---------- */
+function vStats(){
+  const t=today(),c=counts();let ok=0,no=0,days=0;
+  for(const d in S.log){ok+=S.log[d].ok;no+=S.log[d].no;if(S.log[d].n+S.log[d].r>0)days++}
+  const last=[];for(let i=13;i>=0;i--)last.push([t-i,S.log[t-i]||{n:0,r:0}]);
+  const mx=Math.max(10,...last.map(([,l])=>l.n+l.r));
+  const fc=[];for(let i=1;i<=7;i++)fc.push([t+i,Object.keys(S.cards).filter(id=>B[id]&&S.cards[id].d===t+i).length]);
+  const fm=Math.max(5,...fc.map(x=>x[1]));
+  const boxes=[1,2,3,4,5,6,7,8].map(b=>Object.keys(S.cards).filter(id=>B[id]&&S.cards[id].b===b).length),bm=Math.max(1,...boxes);
+  return `<h1>İlerleme</h1>
+  <div class="stats"><div class="stat"><b>🔥 ${streak()}</b><span>Gün serisi</span></div><div class="stat"><b>${c.total}</b><span>Görülen kelime</span></div><div class="stat"><b>${ok+no?Math.round(100*ok/(ok+no)):0}%</b><span>Doğruluk</span></div></div>
+  <div class="stats" style="margin-top:10px"><div class="stat"><b>${c.learning}</b><span>Öğreniyorum</span></div><div class="stat"><b>${c.learned}</b><span>Öğrendim</span></div><div class="stat"><b>${days}</b><span>Çalışılan gün</span></div></div>
+  <div class="card"><b>Son 14 gün</b><div class="mut sm"><span style="color:var(--pri)">■</span> yeni &nbsp;<span style="color:var(--ok)">■</span> tekrar</div>
+    <div class="chart">${last.map(([d,l])=>`<div><i class="n" style="height:${90*l.n/mx}%"></i><i class="r" style="height:${90*l.r/mx}%"></i><span>${new Date(d*864e5).getUTCDate()}</span></div>`).join('')}</div></div>
+  <div class="card"><b>Önümüzdeki 7 gün — planlı tekrarlar</b>
+    <div class="chart" style="height:90px">${fc.map(([d,n])=>`<div><span>${n||''}</span><i class="n" style="height:${70*n/fm}%;opacity:.7"></i><span>${dayStr(d,{month:undefined,weekday:'short'}).split(' ').pop()}</span></div>`).join('')}</div></div>
+  <div class="card"><b>Hafıza basamakları</b><div class="mut sm">Kelime her doğru tekrarda bir basamak çıkar; 5. basamaktan sonra "öğrendim" sayılır.</div>
+    ${boxes.map((n,i)=>`<div class="row sm" style="margin:7px 0"><span style="width:74px">${i+1}. · ${IV[i+1]} gün</span><div class="bar grow"><i style="width:${100*n/bm}%;background:${i+1>=LEARNED?'var(--ok)':'var(--pri)'}"></i></div><span class="mut" style="width:30px;text-align:right">${n}</span></div>`).join('')}</div>
+  <h2>Seviye ilerlemesi</h2>${levelBars()}`;
+}
+
+/* ---------- Ayarlar ---------- */
+function vSet(){
+  const s=S.set,tm=String(s.remH).padStart(2,'0')+':'+String(s.remM).padStart(2,'0');
+  const np=('Notification' in window)?Notification.permission:'yok';
+  return `<h1>Ayarlar</h1>
+  <div class="card">
+    <div class="field"><span>Günlük yeni kelime</span><select onchange="setOpt('daily',+this.value)">${[5,10,15,20,25,30].map(n=>`<option ${n===s.daily?'selected':''}>${n}</option>`).join('')}</select></div>
+    <div class="field"><span>Aksan</span><select onchange="setOpt('accent',this.value)"><option value="en-US" ${s.accent==='en-US'?'selected':''}>Amerikan</option><option value="en-GB" ${s.accent==='en-GB'?'selected':''}>İngiliz</option></select></div>
+    <div class="field"><span>Okuma hızı</span><select onchange="setOpt('rate',+this.value)">${[[0.7,'Yavaş'],[0.9,'Normal'],[1,'Hızlı']].map(([v,t])=>`<option value="${v}" ${v===s.rate?'selected':''}>${t}</option>`).join('')}</select></div>
+    <div class="field"><span>Sesi dene</span><button class="btn smb sec" onclick="speak('Hello! Welcome to your word book.')">🔊 Dinle</button></div>
+  </div>
+  <h2>Günlük hatırlatıcı</h2>
+  <div class="card">
+    <div class="field"><span>Saat</span><input type="time" value="${tm}" onchange="setTime(this.value)"></div>
+    <p class="sm mut">En güvenilir yol telefonun takvimidir: her gün bu saatte, uygulama kapalı olsa bile bildirim gelir.</p>
+    <a class="btn wide" style="text-decoration:none" target="_blank" rel="noopener" href="${gcalLink()}">📅 Google Takvim'e günlük ekle</a>
+    <button class="btn sec wide" style="margin-top:8px" onclick="dlIcs()">Takvim dosyası indir (.ics)</button>
+    <p class="sm mut" style="margin-bottom:6px">Ek olarak uygulama bildirimi: o gün hiç çalışmadıysan hatırlatır. Android bunu her zaman tam saatinde göstermeyebilir.</p>
+    <button class="btn sec wide" onclick="enableNotif()">${np==='granted'?'🔔 Uygulama bildirimi açık — test et':'🔔 Uygulama bildirimini aç'}</button>
+  </div>
+  <h2>Telefona kur</h2>
+  <div class="card sm">${window.matchMedia('(display-mode: standalone)').matches?'✓ Uygulama olarak kurulu.':'Chrome menüsü (⋮) → <b>Ana ekrana ekle / Uygulamayı yükle</b>. Kurduktan sonra internet olmadan da çalışır.'}${deferred?'<button class="btn wide" style="margin-top:10px" onclick="doInstall()">Şimdi kur</button>':''}</div>
+  <h2>Yedek</h2>
+  <div class="card">
+    <p class="sm mut" style="margin-top:0">İlerlemen yalnızca bu telefonda saklanır. Telefon değiştirmeden ya da tarayıcı verilerini silmeden önce yedek al.</p>
+    <button class="btn sec wide" onclick="exportData()">Yedeği indir</button>
+    <label class="btn sec wide" style="margin-top:8px">Yedekten geri yükle<input type="file" accept="application/json,.json" hidden onchange="importData(this.files[0])"></label>
+    <button class="btn ghost wide" style="color:var(--no)" onclick="resetAll()">Tüm ilerlemeyi sıfırla</button>
+  </div>
+  <button class="btn ghost wide" onclick="showTips()">💡 Unutmamak için 7 kural</button>
+  <p class="ctr mut sm">Kelime listesi: The Oxford 3000™ (CEFR) · ${W.length} kelime yüklü</p>`;
+}
+function setOpt(k,v){S.set[k]=v;save()}
+function setTime(v){const[a,b]=v.split(':');S.set.remH=+a;S.set.remM=+b;save();render()}
+function remDates(){const d=new Date();d.setHours(S.set.remH,S.set.remM,0,0);if(d<new Date())d.setDate(d.getDate()+1);
+  const f=x=>x.getFullYear()+String(x.getMonth()+1).padStart(2,'0')+String(x.getDate()).padStart(2,'0')+'T'+String(x.getHours()).padStart(2,'0')+String(x.getMinutes()).padStart(2,'0')+'00';
+  return[f(d),f(new Date(d.getTime()+15*6e4))]}
+function gcalLink(){const[a,b]=remDates();return'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent('İngilizce kelime tekrarı')+'&details='+encodeURIComponent('Bugünün tekrarları ve yeni kelimeler seni bekliyor.')+'&dates='+a+'/'+b+'&recur='+encodeURIComponent('RRULE:FREQ=DAILY')}
+function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove()}
+function dlIcs(){const[a,b]=remDates();
+  download('kelime-hatirlatici.ics',['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//KelimeDefterim//TR','BEGIN:VEVENT','UID:kelime-'+Date.now()+'@kelimedefterim','DTSTAMP:'+a,'DTSTART:'+a,'DTEND:'+b,'RRULE:FREQ=DAILY','SUMMARY:İngilizce kelime tekrarı','DESCRIPTION:Bugünün tekrarları ve yeni kelimeler seni bekliyor.','BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:İngilizce kelime tekrarı','TRIGGER:PT0M','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n'),'text/calendar')}
+async function enableNotif(){
+  if(!('Notification' in window)||!navigator.serviceWorker){toast('Bu tarayıcı bildirimi desteklemiyor');return}
+  const p=await Notification.requestPermission();
+  if(p!=='granted'){toast('Bildirim izni verilmedi');render();return}
+  const reg=await navigator.serviceWorker.ready;
+  try{if(reg.periodicSync)await reg.periodicSync.register('hatirlat',{minInterval:6*3600*1000})}catch(e){}
+  pushState();
+  reg.showNotification('Kelime Defterim',{body:'Bildirimler açık. Günlük tekrarını unutma!',icon:'icon-192.png',badge:'icon-192.png',tag:'test'});
+  render();
+}
+function exportData(){download('kelime-yedek-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(S),'application/json');toast('Yedek indirildi')}
+function importData(f){if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.cards||!d.log)throw 0;if(!confirm('Mevcut ilerlemenin yerine yedek yüklenecek. Emin misin?'))return;localStorage.setItem(KEY,JSON.stringify(d));S=load();save();render();toast('Yedek yüklendi')}catch(e){toast('Geçerli bir yedek dosyası değil')}};r.readAsText(f)}
+function resetAll(){if(confirm('Tüm ilerleme silinecek. Bu geri alınamaz. Emin misin?')&&confirm('Son kez: gerçekten sıfırlansın mı?')){localStorage.removeItem(KEY);S=load();save();render()}}
+let deferred=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;if(tab==='set')render()});
+function doInstall(){if(deferred){deferred.prompt();deferred=null}}
+
+/* ---------- oturum motoru ---------- */
+let ses=null,autoT=null;
+const q=(type,id)=>({type,id});
+function startSession(o){
+  if(!o.queue.length){toast('Çalışılacak kelime yok');return}
+  ses=Object.assign({i:0,seen:new Set(),ok:0,no:0,missed:new Set(),t0:Date.now()},o);
+  $('#ses').classList.remove('hidden');renderItem();
+}
+function quitSession(){
+  if(ses&&ses.i<ses.queue.length&&ses.i>0&&!confirm('Oturumdan çıkılsın mı? Buraya kadarki ilerlemen kaydedildi.'))return;
+  endSession();
+}
+function endSession(){clearTimeout(autoT);if(canSpeak)speechSynthesis.cancel();ses=null;$('#ses').classList.add('hidden');save();render()}
+function startNew(){
+  let left=S.set.daily-S.tn.ids.length;
+  if(left<=0)left=10;
+  const ws=nextNew(left);const queue=[];
+  for(let g=0;g<ws.length;g+=5){
+    const grp=ws.slice(g,g+5);
+    grp.forEach(w=>queue.push(q('intro',w.id)));
+    shuffle(grp).forEach(w=>queue.push(q('mc_en_tr',w.id)));
+    shuffle(grp).forEach(w=>queue.push(q('mc_tr_en',w.id)));
+  }
+  shuffle(ws).forEach(w=>queue.push(q('type',w.id)));
+  startSession({mode:'learn',queue,title:'Yeni kelimeler'});
+}
+function typeFor(id){
+  const b=S.cards[id].b,r=Math.random();
+  if(b<=1)return r<.5?'mc_en_tr':'mc_tr_en';
+  if(b===2)return r<.35?'mc_tr_en':r<.65&&canSpeak?'listen_mc':'type';
+  return r<.55?'type':r<.8&&canSpeak?'listen_type':'mc_tr_en';
+}
+function startReview(){startSession({mode:'review',queue:dueCards().slice(0,50).map(id=>q(typeFor(id),id)),title:'Tekrar'})}
+function startEvening(){const ids=S.tn.ids.filter(id=>B[id]);startSession({mode:'free',queue:shuffle(ids).map(id=>q(Math.random()<.5?'mc_tr_en':'type',id)),title:'Akşam tekrarı'})}
+function weakPool(n,f){
+  const ids=Object.keys(S.cards).filter(id=>B[id]&&(!f||f(S.cards[id])));
+  return ids.map(id=>{const c=S.cards[id];return[id,Math.random()*(1+c.l)*(10-c.b)]}).sort((a,b)=>b[1]-a[1]).slice(0,n).map(x=>x[0]);
+}
+function startQuick(){startSession({mode:'quick',queue:weakPool(10).map(id=>q(typeFor(id),id)),title:'2 dakikalık tur'})}
+function startHard(){startSession({mode:'quick',queue:weakPool(15,isHard).map(id=>q(Math.random()<.5?'mc_tr_en':'type',id)),title:'Zor kelimeler'})}
+function startListen(){startSession({mode:'quick',queue:weakPool(10).map((id,i)=>q(i%2?'listen_type':'listen_mc',id)),title:'Dinleme'})}
+function startWrite(){startSession({mode:'quick',queue:weakPool(10).map(id=>q('type',id)),title:'Yazma'})}
+
+function distract(w){
+  const tm=new Set(w.tr.split(/,\s*/)),mp=w.pos.split(/[,\/]/)[0].trim();
+  const pool=W.filter(x=>x.id!==w.id&&x.head!==w.head&&!x.tr.split(/,\s*/).some(m=>tm.has(m)));
+  let a=pool.filter(x=>x.lv===w.lv&&x.pos.split(/[,\/]/)[0].trim()===mp);
+  const seenA=a.filter(x=>S.cards[x.id]);if(seenA.length>=6)a=seenA;
+  if(a.length<3)a=pool;
+  const out=[],heads=new Set(),trs=new Set();
+  for(const x of shuffle(a)){if(heads.has(x.head)||trs.has(x.tr))continue;heads.add(x.head);trs.add(x.tr);out.push(x);if(out.length===3)break}
+  return out;
+}
+function renderItem(){
+  clearTimeout(autoT);
+  const n=ses.queue.length;
+  $('#sbar').style.width=(100*ses.i/n)+'%';$('#scount').textContent=ses.i+'/'+n;
+  if(ses.i>=n)return finish();
+  const it=ses.cur=ses.queue[ses.i],w=B[it.id],body=$('#sbody'),foot=$('#sfoot');
+  ses.answered=false;body.scrollTop=0;
+  if(it.type==='intro'){
+    body.innerHTML='<div class="qlabel">Yeni kelime · dinle ve sesli tekrar et</div>'+wordCard(w);
+    foot.innerHTML='<button class="btn wide" onclick="next()">Anladım, devam</button>';
+    say(w.id);return;
+  }
+  const opts=()=>shuffle([w,...distract(w)]);
+  if(it.type==='mc_en_tr'){
+    body.innerHTML=`<div class="qlabel">Türkçesi hangisi?</div><div class="word">${esc(w.head)}</div><div class="row"><div class="okn grow">${esc(w.ok)}</div>${canSpeak?`<button class="spk" onclick="say('${esc(w.id)}')">${SPK}</button>`:''}</div><div class="mut sm">${esc(trPos(w.pos))}${w.hint?' · '+esc(w.hint):''}</div>
+    <div class="opts">${opts().map(o=>`<button class="opt" data-ok="${o.id===w.id?1:0}" onclick="pick(this)">${esc(o.tr)}</button>`).join('')}</div>`;
+    say(w.id);
+  }else if(it.type==='mc_tr_en'){
+    body.innerHTML=`<div class="qlabel">İngilizcesi hangisi?</div><div class="mean" style="font-size:30px">${esc(w.tr)}</div><div class="mut sm">${esc(trPos(w.pos))}</div>
+    <div class="opts">${opts().map(o=>`<button class="opt" data-ok="${o.id===w.id?1:0}" onclick="pick(this)">${esc(o.head)}</button>`).join('')}</div>`;
+  }else if(it.type==='listen_mc'){
+    body.innerHTML=`<div class="qlabel">Dinle · anlamı hangisi?</div><div class="ctr" style="margin:26px 0 4px"><button class="spk big" onclick="say('${esc(w.id)}')">${SPK}</button><div style="margin-top:10px"><button class="btn ghost smb" onclick="say('${esc(w.id)}',1)">🐢 Yavaş dinle</button></div></div>
+    <div class="opts">${opts().map(o=>`<button class="opt" data-ok="${o.id===w.id?1:0}" onclick="pick(this)">${esc(o.tr)}</button>`).join('')}</div>`;
+    say(w.id);
+  }else{ // type, listen_type
+    const L=it.type==='listen_type';
+    body.innerHTML=(L?`<div class="qlabel">Dinle · duyduğun kelimeyi yaz</div><div class="ctr" style="margin:26px 0 4px"><button class="spk big" onclick="say('${esc(w.id)}')">${SPK}</button><div style="margin-top:10px"><button class="btn ghost smb" onclick="say('${esc(w.id)}',1)">🐢 Yavaş dinle</button></div></div>`
+      :`<div class="qlabel">İngilizcesini yaz</div><div class="mean" style="font-size:30px">${esc(w.tr)}</div><div class="mut sm">${esc(trPos(w.pos))}${w.hint?' · '+esc(w.hint):''}</div>`)
+      +`<input class="tin" id="tin" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" placeholder="…"><div class="ctr mut" id="hint" style="margin-top:10px;letter-spacing:.2em;min-height:24px"></div>`;
+    foot.innerHTML=`<button class="btn wide" onclick="checkType()">Kontrol et</button><div class="row" style="margin-top:6px"><button class="btn ghost grow" onclick="showHint()">İpucu</button><button class="btn ghost grow" onclick="answer(false)">Bilmiyorum</button></div>`;
+    const tin=$('#tin');tin.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();ses.answered?next():checkType()}};
+    if(L)say(w.id);
+    setTimeout(()=>tin.focus(),60);return;
+  }
+  foot.innerHTML='';
+}
+function pick(btn){
+  if(ses.answered)return;
+  const ok=btn.dataset.ok==='1';
+  document.querySelectorAll('.opt').forEach(b=>{if(b.dataset.ok==='1')b.classList.add('ok')});
+  if(!ok)btn.classList.add('no');
+  answer(ok);
+}
+const norm=s=>s.toLowerCase().replace(/[’`´]/g,"'").replace(/\s+/g,' ').replace(/[.!?]+$/,'').trim();
+function checkType(){
+  if(ses.answered)return;
+  const v=norm($('#tin').value);if(!v){$('#tin').focus();return}
+  const w=B[ses.cur.id],acc=w.head.split(/,\s*/).map(norm);
+  // dinlemede sesteş kelime yazıldıysa da kabul et
+  const homo=ses.cur.type==='listen_type'&&W.some(x=>norm(x.head)===v&&x.ok===w.ok);
+  answer(acc.includes(v)||homo);
+}
+function showHint(){const h=B[ses.cur.id].head.split(/,\s*/)[0];$('#hint').textContent=h[0]+h.slice(1).replace(/[^ ]/g,' _');$('#tin').focus()}
+function answer(ok){
+  if(ses.answered)return;ses.answered=true;
+  const it=ses.cur,w=B[it.id],first=!ses.seen.has(it.id);ses.seen.add(it.id);
+  if(ses.mode==='learn'&&!S.cards[w.id]){S.cards[w.id]={b:1,d:today()+1,l:0,s:0,c:0,t:today()};if(notes[w.id])S.cards[w.id].n=notes[w.id];if(S.tn.day!==today())S.tn={day:today(),ids:[]};S.tn.ids.push(w.id);logAdd('n')}
+  const c=S.cards[w.id];c.s++;if(ok)c.c++;
+  if(first&&!it.re){
+    if(ses.mode==='review')grade(w.id,ok);
+    else if(ses.mode==='quick'&&!ok){c.l++;c.b=Math.max(1,c.b-1);c.d=today()}
+    if(ses.mode!=='learn')logAdd('r');
+  }
+  if(!it.re){logAdd(ok?'ok':'no');ok?ses.ok++:ses.no++}
+  if(!ok){ses.missed.add(w.id);ses.queue.splice(Math.min(ses.queue.length,ses.i+4),0,{type:it.type,id:it.id,re:true})}
+  save();
+  const tin=$('#tin');if(tin){tin.disabled=true;tin.style.borderColor=ok?'var(--ok)':'var(--no)'}
+  $('#sfoot').innerHTML=`<div class="fb ${ok?'ok':'no'}"><h3>${ok?'✓ Doğru':'✗ Doğrusu şöyle'}</h3><div class="row"><div class="grow"><b style="font-size:19px">${esc(w.head)}</b> <span class="okn" style="font-size:15px">${esc(w.ok)}</span><div>${esc(w.tr)}</div>${ok?'':`<div class="sm mut" style="margin-top:4px">${esc(w.ex)}</div>${c.n?`<div class="sm" style="margin-top:4px">💡 ${esc(c.n)}</div>`:''}`}</div>${canSpeak?`<button class="spk" onclick="say('${esc(w.id)}')">${SPK}</button>`:''}</div></div><button class="btn wide" onclick="next()">Devam</button>`;
+  if(it.type!=='mc_en_tr'&&it.type!=='listen_mc'||!ok)say(w.id);
+  if(ok)autoT=setTimeout(next,1500);
+}
+function next(){clearTimeout(autoT);if(!ses)return;ses.i++;renderItem()}
+function finish(){
+  save();
+  const tot=ses.ok+ses.no,pct=tot?Math.round(100*ses.ok/tot):100,min=Math.max(1,Math.round((Date.now()-ses.t0)/6e4));
+  const more=ses.mode==='review'&&dueCards().length;
+  const msg={learn:'Bu kelimeler yarın ilk tekrarına gelecek. Uyumadan önce "Akşam tekrarı"nı yapmayı unutma.',review:more?`Hâlâ ${more} tekrar bekliyor.`:'Bugünün tekrarları bitti. Yarın görüşürüz!',quick:'Yanlış yaptıkların tekrar listesine eklendi.',free:'Güzel. Bu kelimeler yarın tekrar karşına çıkacak.'}[ses.mode];
+  $('#sbody').innerHTML=`<div class="ctr" style="margin-top:36px"><div style="font-size:64px">${pct>=80?'🎉':'💪'}</div><h1>${esc(ses.title)} tamam</h1><p class="mut">${msg}</p></div>
+  <div class="stats"><div class="stat"><b>${ses.seen.size}</b><span>Kelime</span></div><div class="stat"><b>${pct}%</b><span>Doğruluk</span></div><div class="stat"><b>${min} dk</b><span>Süre</span></div></div>
+  ${ses.missed.size?`<div class="card"><b>Zorlandıkların</b>${[...ses.missed].map(id=>`<div class="wrow"><div class="grow"><b>${esc(B[id].head)}</b> <span class="mut sm">${esc(B[id].ok)}</span><div class="mut sm">${esc(B[id].tr)}</div></div>${canSpeak?`<button class="spk" onclick="say('${esc(id)}')">${SPK}</button>`:''}</div>`).join('')}</div>`:''}`;
+  $('#sfoot').innerHTML=(more?'<button class="btn wide" onclick="endSession();startReview()">Tekrarlara devam et</button>':'')+`<button class="btn ${more?'ghost':''} wide" onclick="endSession()">Bitir</button>`;
+}
+
+/* ---------- başlat ---------- */
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!ses)render()});
+save();render();
+</script>
+</body>
+</html>
