@@ -1,6 +1,6 @@
 // Kelime Defterim — çevrimdışı önbellek + günlük hatırlatma
-const CACHE = 'kelime-v19';
-const FILES = ['./', 'index.html', 'words.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
+const CACHE = 'kelime-v20';
+const FILES = ['./', 'index.html', 'words.js', 'icons.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
