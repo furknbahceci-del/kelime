@@ -275,7 +275,7 @@ function vHome(){
 function levelBars(){
   return '<div class="card">'+['ME',...LEVELS].filter(lv=>W.some(w=>w.lv===lv)).map(lv=>{
     const all=W.filter(w=>w.lv===lv),st=all.filter(w=>S.cards[w.id]).length;
-    return `<div class="row sm" style="margin:6px 0"><b style="width:${lv==='ME'?48:26}px">${lvName(lv)}</b><div class="bar grow"><i style="width:${100*st/all.length}%"></i></div><span class="mut">${st}/${all.length}</span></div>`}).join('')+'</div>';
+    return `<div class="row sm" style="margin:6px 0"><b style="width:${lv==='ME'?48:26}px">${lvName(lv)}</b><div class="bar grow"><i style="width:${100*st/all.length}%"></i></div><span class="mut">${st}/${all.length-st}</span></div>`}).join('')+'</div>';
 }
 function showTips(){
   openModal(`<h2 style="margin-top:0">Unutmamak için 7 kural</h2>
